@@ -38,12 +38,10 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
     const preview = URL.createObjectURL(file)
     onChange({ photoFile: file, photoPreview: preview })
 
-    // Auto-identify via Gemini
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      const base64 = (ev.target?.result as string).split(',')[1]
+    // Compress image then identify via Gemini
+    compressImage(file, 1200, 0.7).then(async (compressed) => {
       try {
-        const result = await identify(base64, file.type, profile?.net_hole_size)
+        const result = await identify(compressed.base64, compressed.mimeType, profile?.net_hole_size)
         if (result.species) {
           onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
           setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
@@ -53,8 +51,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
       } catch (err: any) {
         setAiResult(`ID failed: ${err.message}`)
       }
-    }
-    reader.readAsDataURL(file)
+    })
   }
 
   const flyOptions = FLY_DATA[flyCategory] || FLY_DATA['Dry Flies']
@@ -203,4 +200,25 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
       />
     </div>
   )
+}
+
+function compressImage(file: File, maxDim: number, quality: number): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let { width, height } = img
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' })
+    }
+    img.src = URL.createObjectURL(file)
+  })
 }
