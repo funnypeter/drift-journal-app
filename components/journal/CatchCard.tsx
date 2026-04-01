@@ -38,7 +38,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
     const preview = URL.createObjectURL(file)
     onChange({ photoFile: file, photoPreview: preview })
 
-    // Auto-identify
+    // Auto-identify via Gemini
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const base64 = (ev.target?.result as string).split(',')[1]
@@ -47,8 +47,12 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
         if (result.species) {
           onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
           setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
+        } else if (result.error) {
+          setAiResult(`ID failed: ${result.error}`)
         }
-      } catch {}
+      } catch (err: any) {
+        setAiResult(`ID failed: ${err.message}`)
+      }
     }
     reader.readAsDataURL(file)
   }

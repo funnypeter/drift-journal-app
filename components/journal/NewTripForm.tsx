@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { createClient } from '@/lib/supabase/client'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
@@ -26,7 +25,6 @@ interface CatchDraft extends Omit<Catch, 'id' | 'trip_id' | 'user_id' | 'created
 
 export default function NewTripForm() {
   const router = useRouter()
-  const supabase = createClient()
 
   // Step 1: Location, Step 2: Log entry
   const [step, setStep] = useState<1 | 2>(1)
@@ -99,73 +97,83 @@ export default function NewTripForm() {
     setError('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not logged in')
-
-      // Create trip
+      // Create trip via API route (handles auth server-side)
       const tripTitle = title || `${location.name.split(',')[0]} Trip`
-      const { data: trip, error: tripErr } = await supabase.from('trips').insert({
-        user_id: user.id,
-        title: tripTitle,
-        date,
-        location: location.name,
-        state: location.state,
-        lat: location.lat,
-        lng: location.lng,
-        notes,
-        ...conditions,
-        bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
-      }).select().single()
-
-      if (tripErr || !trip) throw new Error(tripErr?.message || 'Failed to create trip')
+      const tripResp = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: tripTitle,
+          date,
+          location: location.name,
+          state: location.state,
+          lat: location.lat,
+          lng: location.lng,
+          notes,
+          ...conditions,
+          bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
+        }),
+      })
+      if (!tripResp.ok) {
+        const errData = await tripResp.json()
+        throw new Error(errData.error || `Save failed (${tripResp.status})`)
+      }
+      const trip = await tripResp.json()
 
       // Upload catches
       let heroPhotoUrl: string | null = null
       for (let i = 0; i < catches.length; i++) {
         const c = catches[i]
-        const catchId = crypto.randomUUID()
         let photoUrl: string | null = null
 
-        // Upload photo
+        // Upload photo via API route
         if (c.photoFile) {
-          const ext = c.photoFile.name.split('.').pop() || 'jpg'
-          const path = `${user.id}/${catchId}.${ext}`
-          const { data: uploaded } = await supabase.storage
-            .from('catch-photos')
-            .upload(path, c.photoFile, { contentType: c.photoFile.type })
-          if (uploaded) {
-            const { data: { publicUrl } } = supabase.storage
-              .from('catch-photos').getPublicUrl(uploaded.path)
-            photoUrl = publicUrl
+          const formData = new FormData()
+          formData.append('file', c.photoFile)
+          const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
+          if (uploadResp.ok) {
+            const uploadData = await uploadResp.json()
+            photoUrl = uploadData.url
             if (!heroPhotoUrl) heroPhotoUrl = photoUrl
           }
         }
 
-        await supabase.from('catches').insert({
-          id: catchId,
-          trip_id: trip.id,
-          user_id: user.id,
-          species: c.species || 'Unknown',
-          length: c.length || null,
-          fly: c.fly || null,
-          fly_category: c.fly_category,
-          fly_size: c.fly_size,
-          time_caught: c.time_caught || null,
-          date: c.date || date,
-          notes: c.notes,
-          photo_url: photoUrl,
-          sort_order: i,
+        // Create catch via API route
+        const catchResp = await fetch('/api/catches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trip_id: trip.id,
+            species: c.species || 'Unknown',
+            length: c.length || null,
+            fly: c.fly || null,
+            fly_category: c.fly_category,
+            fly_size: c.fly_size,
+            time_caught: c.time_caught || null,
+            date: c.date || date,
+            notes: c.notes,
+            photo_url: photoUrl,
+            sort_order: i,
+          }),
         })
+        if (!catchResp.ok) {
+          const errData = await catchResp.json()
+          console.error('Catch save error:', errData)
+        }
       }
 
       // Update hero photo
       if (heroPhotoUrl) {
-        await supabase.from('trips').update({ hero_photo_url: heroPhotoUrl }).eq('id', trip.id)
+        await fetch(`/api/trips/${trip.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hero_photo_url: heroPhotoUrl }),
+        })
       }
 
       router.push('/dashboard')
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Failed to save')
       setSaving(false)
     }
   }
