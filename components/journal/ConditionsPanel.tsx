@@ -154,7 +154,7 @@ function Field({ label, value, onChange, placeholder }: {
 }) {
   return (
     <div>
-      <label className="cond-label">{label}</label>
+      <label className={styles.condLabel}>{label}</label>
       <input
         value={value}
         onChange={onChange}
