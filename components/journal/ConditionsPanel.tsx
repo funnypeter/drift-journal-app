@@ -22,10 +22,8 @@ interface Props {
 }
 
 export default function ConditionsPanel({ location, date, conditions, onChange }: Props) {
-  const [loadingUSGS, setLoadingUSGS] = useState(false)
-  const [loadingWeather, setLoadingWeather] = useState(false)
+  const [loadingRefresh, setLoadingRefresh] = useState(false)
   const [usgsStatus, setUsgsStatus] = useState('')
-  const [expanded, setExpanded] = useState(false)
 
   function getMoon(dateStr: string) {
     const synodic = 29.53058867
@@ -37,134 +35,141 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
     return phases[Math.round(phase / synodic * 8) % 8]
   }
 
-  async function fetchUSGS() {
-    setLoadingUSGS(true)
-    setUsgsStatus('Searching for gauge...')
-    try {
-      const params = new URLSearchParams({ type: 'usgs' })
-      if (conditions.usgs_site_id) params.set('siteId', conditions.usgs_site_id)
-      if (location?.name) params.set('location', location.name)
-      if (location?.lat) params.set('lat', String(location.lat))
-      if (location?.lng) params.set('lng', String(location.lng))
-
-      const resp = await fetch(`/api/conditions?${params}`)
-      const data = await resp.json()
-
-      if (data.error) { setUsgsStatus(data.error); return }
-      onChange({
-        ...conditions,
-        flow: data.flow || conditions.flow,
-        water_temp: data.waterTemp || conditions.water_temp,
-        usgs_site_id: data.siteId || conditions.usgs_site_id,
-      })
-      setUsgsStatus(`Gauge ${data.siteId} loaded`)
-    } catch { setUsgsStatus('Fetch failed') }
-    setLoadingUSGS(false)
-  }
-
-  async function fetchWeather() {
+  async function refresh() {
     if (!location) return
-    setLoadingWeather(true)
+    setLoadingRefresh(true)
     try {
-      const resp = await fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
-      const data = await resp.json()
-      if (!data.error) {
+      // Fetch USGS
+      const usgsParams = new URLSearchParams({ type: 'usgs', location: location.name, lat: String(location.lat), lng: String(location.lng) })
+      if (conditions.usgs_site_id) usgsParams.set('siteId', conditions.usgs_site_id)
+      const usgsResp = await fetch(`/api/conditions?${usgsParams}`)
+      const usgsData = await usgsResp.json()
+      if (!usgsData.error) {
         onChange({
           ...conditions,
-          air_temp: data.airTemp || conditions.air_temp,
-          weather: data.weather || conditions.weather,
-          baro: data.baro || conditions.baro,
-          wind: data.wind || conditions.wind,
+          flow: usgsData.flow || conditions.flow,
+          water_temp: usgsData.waterTemp || conditions.water_temp,
+          usgs_site_id: usgsData.siteId || conditions.usgs_site_id,
+        })
+      }
+      // Fetch weather
+      const wxResp = await fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
+      const wxData = await wxResp.json()
+      if (!wxData.error) {
+        onChange({
+          ...conditions,
+          flow: usgsData.flow || conditions.flow,
+          water_temp: usgsData.waterTemp || conditions.water_temp,
+          usgs_site_id: usgsData.siteId || conditions.usgs_site_id,
+          air_temp: wxData.airTemp || conditions.air_temp,
+          weather: wxData.weather || conditions.weather,
+          baro: wxData.baro || conditions.baro,
+          wind: wxData.wind || conditions.wind,
           moon: getMoon(date),
         })
       }
     } catch {}
-    setLoadingWeather(false)
+    setLoadingRefresh(false)
+  }
+
+  async function fetchOverride() {
+    if (!conditions.usgs_site_id) return
+    setLoadingRefresh(true)
+    setUsgsStatus('Fetching...')
+    try {
+      const resp = await fetch(`/api/conditions?type=usgs&siteId=${conditions.usgs_site_id}`)
+      const data = await resp.json()
+      if (data.error) { setUsgsStatus(data.error) }
+      else {
+        onChange({ ...conditions, flow: data.flow || conditions.flow, water_temp: data.waterTemp || conditions.water_temp, usgs_site_id: data.siteId || conditions.usgs_site_id })
+        setUsgsStatus(`Gauge ${data.siteId} loaded`)
+      }
+    } catch { setUsgsStatus('Fetch failed') }
+    setLoadingRefresh(false)
   }
 
   const u = (field: keyof Conditions) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...conditions, [field]: e.target.value })
 
+  const hasUSGS = conditions.flow || conditions.water_temp
+
   return (
     <div className={styles.panel}>
-      <button className={styles.toggle} onClick={() => setExpanded(!expanded)}>
-        <div className={styles.toggleLeft}>
+      {/* USGS Section */}
+      <div className={styles.sectionLabel}>
+        <div className={styles.sectionLabelLeft}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
             <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
           </svg>
           Live Conditions · USGS
         </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"
-          style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }}>
-          <path d="M6 9l6 6 6-6"/>
-        </svg>
-      </button>
+        <button className={styles.refreshBtn} onClick={refresh} disabled={loadingRefresh}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          {loadingRefresh ? '...' : 'Refresh'}
+        </button>
+      </div>
 
-      {expanded && (
-        <div className={styles.content}>
-          {/* USGS fetch */}
-          <div className={styles.fetchRow}>
-            <input
-              className={styles.siteInput}
-              value={conditions.usgs_site_id}
-              onChange={u('usgs_site_id')}
-              placeholder="USGS site ID (optional)"
-            />
-            <button className={styles.fetchBtn} onClick={fetchUSGS} disabled={loadingUSGS}>
-              {loadingUSGS ? '...' : 'Fetch'}
-            </button>
-          </div>
-          {usgsStatus && <p className={styles.usgsStatus}>{usgsStatus}</p>}
-
-          {/* Weather fetch */}
-          {location && (
-            <button className={styles.weatherBtn} onClick={fetchWeather} disabled={loadingWeather}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
-              </svg>
-              {loadingWeather ? 'Loading weather...' : 'Fetch weather'}
-            </button>
-          )}
-
-          {/* Fields grid */}
-          <div className={styles.grid}>
-            <Field label="Flow (CFS)" value={conditions.flow} onChange={u('flow')} placeholder="—"/>
-            <Field label="Water Temp" value={conditions.water_temp} onChange={u('water_temp')} placeholder="°F"/>
-            <Field label="Air Temp" value={conditions.air_temp} onChange={u('air_temp')} placeholder="°F"/>
-            <Field label="Barometric" value={conditions.baro} onChange={u('baro')} placeholder="inHg"/>
-            <Field label="Weather" value={conditions.weather} onChange={u('weather')} placeholder="Sunny..."/>
-            <Field label="Wind" value={conditions.wind} onChange={u('wind')} placeholder="10 mph NW"/>
-          </div>
-
-          {/* Moon */}
-          <div className={styles.moonRow}>
-            <span className={styles.moonLabel}>Moon</span>
-            <span className={styles.moonVal}>{conditions.moon || getMoon(date)}</span>
-          </div>
+      {/* Big data cells */}
+      <div className={styles.dataRow}>
+        <div className={styles.dataCell}>
+          <div className={styles.dataCellLabel}>Flow (CFS)</div>
+          <div className={styles.dataCellValue}>{conditions.flow ? `${conditions.flow} cfs` : 'N/A'}</div>
+          {conditions.flow && <div className={styles.dataCellSub}>saved</div>}
         </div>
-      )}
-    </div>
-  )
-}
+        <div className={styles.dataCell}>
+          <div className={styles.dataCellLabel}>Water Temp</div>
+          <div className={styles.dataCellValue}>{conditions.water_temp ? `${conditions.water_temp}°F` : 'N/A'}</div>
+          {conditions.water_temp && <div className={styles.dataCellSub}>°C ↔ °F</div>}
+        </div>
+        <div className={styles.dataCell}>
+          <div className={styles.dataCellLabel}>Gauge Ht</div>
+          <div className={styles.dataCellValue}>—</div>
+          <div className={styles.dataCellSub}>feet</div>
+        </div>
+      </div>
 
-function Field({ label, value, onChange, placeholder }: {
-  label: string; value: string
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  placeholder: string
-}) {
-  return (
-    <div>
-      <label className={styles.condLabel}>{label}</label>
-      <input
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        style={{
-          width: '100%', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8,
-          padding: '8px 10px', fontSize: 14, fontFamily: 'var(--sans)',
-          background: 'white', outline: 'none'
-        }}
-      />
+      {/* Override USGS site ID */}
+      <div className={styles.overrideRow}>
+        <input
+          className={styles.siteInput}
+          value={conditions.usgs_site_id}
+          onChange={u('usgs_site_id')}
+          placeholder="Override: USGS site ID (optional)"
+        />
+        <button className={styles.overrideFetchBtn} onClick={fetchOverride} disabled={loadingRefresh}>
+          Fetch
+        </button>
+      </div>
+      {usgsStatus && <p className={styles.usgsStatus}>{usgsStatus}</p>}
+
+      {/* Other conditions */}
+      <div className={styles.otherLabel}>Other Conditions</div>
+      <div className={styles.grid}>
+        <div>
+          <label className={styles.condLabel}>Air Temp (°F)</label>
+          <input className={styles.condInput} value={conditions.air_temp} onChange={u('air_temp')} placeholder="—" />
+        </div>
+        <div>
+          <label className={styles.condLabel}>Barometric (inHg)</label>
+          <input className={styles.condInput} value={conditions.baro} onChange={u('baro')} placeholder="—" />
+        </div>
+        <div>
+          <label className={styles.condLabel}>Weather</label>
+          <input className={styles.condInput} value={conditions.weather} onChange={u('weather')} placeholder="—" />
+        </div>
+        <div>
+          <label className={styles.condLabel}>Wind</label>
+          <input className={styles.condInput} value={conditions.wind} onChange={u('wind')} placeholder="—" />
+        </div>
+      </div>
+
+      {/* Moon */}
+      <div className={styles.moonRow}>
+        <span className={styles.moonLabel}>Moon</span>
+        <span className={styles.moonVal}>{conditions.moon || getMoon(date)}</span>
+      </div>
     </div>
   )
 }

@@ -179,8 +179,9 @@ export default function NewTripForm() {
               <path d="M15 18l-6-6 6-6"/>
             </svg>
           </button>
-          <h1 className={styles.stepTitle}>Where did you fish?</h1>
         </div>
+        <div className={styles.stepLabel}>New Entry · Step 1 of 2</div>
+        <h1 className={styles.stepTitle}>Where did you fish?</h1>
         <LocationSearch
           onSelect={(loc) => {
             setLocation(loc)
@@ -199,8 +200,9 @@ export default function NewTripForm() {
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
-        <h1 className={styles.stepTitle}>Log Entry</h1>
       </div>
+      <div className={styles.stepLabel}>New Entry · Step 2 of 2</div>
+      <h1 className={styles.stepTitle}>{location?.name || 'Log Entry'}</h1>
 
       {/* Location badge */}
       <div className={styles.locBadge}>

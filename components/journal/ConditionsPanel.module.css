@@ -1,46 +1,87 @@
 .panel {
-  background: white;
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow);
   margin-bottom: 16px;
 }
 
-.toggle {
-  width: 100%;
+.sectionLabel {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--sans);
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.toggleLeft {
+.sectionLabelLeft {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.content {
-  padding: 0 16px 16px;
-  border-top: 1px solid var(--border);
+.refreshBtn {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  cursor: pointer;
+  font-family: var(--sans);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.1s;
 }
 
-.fetchRow {
+.refreshBtn:hover { background: rgba(30,77,67,0.06); }
+.refreshBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Big data display */
+.dataRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.dataCell {
+  background: var(--bg);
+  padding: 10px 12px;
+}
+
+.dataCellLabel {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.dataCellValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.dataCellSub {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Override row */
+.overrideRow {
   display: flex;
   gap: 8px;
-  padding-top: 12px;
+  margin-bottom: 12px;
 }
 
 .siteInput {
@@ -54,7 +95,7 @@
   outline: none;
 }
 
-.fetchBtn {
+.overrideFetchBtn {
   background: var(--teal);
   color: white;
   border: none;
@@ -67,35 +108,29 @@
   white-space: nowrap;
 }
 
-.fetchBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.overrideFetchBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .usgsStatus {
   font-size: 11px;
   color: var(--muted);
+  margin-bottom: 8px;
 }
 
-.weatherBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--teal);
-  cursor: pointer;
-  font-family: var(--sans);
-  align-self: flex-start;
+/* Other conditions section */
+.otherLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
-
-.weatherBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin-bottom: 12px;
 }
 
 .condLabel {
@@ -107,6 +142,20 @@
   color: var(--muted);
   margin-bottom: 4px;
 }
+
+.condInput {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+}
+
+.condInput:focus { border-color: var(--teal); }
 
 .moonRow {
   display: flex;

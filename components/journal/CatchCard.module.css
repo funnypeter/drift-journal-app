@@ -1,8 +1,8 @@
 .card {
-  background: white;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
   margin-bottom: 16px;
 }
 
