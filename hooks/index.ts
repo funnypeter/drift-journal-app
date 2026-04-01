@@ -104,7 +104,7 @@ export function useProfile() {
 
   useEffect(() => {
     supabase.from('profiles').select('*').single()
-      .then(({ data }) => { if (data) setProfile(data) })
+      .then(({ data }: { data: Profile | null }) => { if (data) setProfile(data) })
   }, [])
 
   const updateProfile = async (updates: Partial<Profile>) => {
