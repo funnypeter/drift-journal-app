@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'AI not configured' }, { status: 503 })
 
   const prompt = netHoleSize
-    ? `If the holes at the bottom of the net are ${netHoleSize} inches in diameter, estimate the size of the fish. Also identify the species. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your actual measurement. Species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling.`
-    : `Estimate the size of this fish in inches. Also identify the species. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your actual estimate. Species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling.`
+    ? `Determine the fish species and estimate the size of the fish in inches. The net holes are ${netHoleSize} inches in diameter — use this as a reference for your size estimate. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Common species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling — but identify whatever species you see.`
+    : `Determine the fish species and estimate the size of the fish in inches when possible. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Common species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling — but identify whatever species you see.`
 
   try {
     const response = await fetch(

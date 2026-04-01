@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
+import NavBarWrapper from '@/components/ui/NavBarWrapper'
 import './globals.css'
 
 const playfair = Playfair_Display({
@@ -32,7 +33,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        <div style={{ minHeight: '100vh', paddingBottom: 'var(--nav-h)' }}>
+          {children}
+        </div>
+        <NavBarWrapper />
+      </body>
     </html>
   )
 }

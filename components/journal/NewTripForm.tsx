@@ -163,7 +163,7 @@ export default function NewTripForm() {
         await supabase.from('trips').update({ hero_photo_url: heroPhotoUrl }).eq('id', trip.id)
       }
 
-      router.push(`/trips/${trip.id}`)
+      router.push('/dashboard')
     } catch (err: any) {
       setError(err.message)
       setSaving(false)
