@@ -50,6 +50,8 @@
 .searchIcon {
   position: absolute;
   left: 14px;
+  width: 18px;
+  height: 18px;
   color: var(--muted);
   pointer-events: none;
 }

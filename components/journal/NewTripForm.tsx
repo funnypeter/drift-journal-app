@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import type { Catch } from '@/types'
 import styles from './NewTripForm.module.css'
+
+const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
 
 interface LocationData {
   name: string
@@ -42,6 +45,38 @@ export default function NewTripForm() {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Auto-fetch USGS + weather when location is selected
+  useEffect(() => {
+    if (!location || conditions.flow) return
+    const params = new URLSearchParams({
+      type: 'usgs', location: location.name,
+      lat: String(location.lat), lng: String(location.lng),
+    })
+    fetch(`/api/conditions?${params}`).then(r => r.json()).then(data => {
+      if (!data.error) {
+        setConditions(prev => ({
+          ...prev,
+          flow: data.flow || prev.flow,
+          water_temp: data.waterTemp || prev.water_temp,
+          usgs_site_id: data.siteId || prev.usgs_site_id,
+        }))
+      }
+    }).catch(() => {})
+    // Also fetch weather
+    fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
+      .then(r => r.json()).then(data => {
+        if (!data.error) {
+          setConditions(prev => ({
+            ...prev,
+            air_temp: data.airTemp || prev.air_temp,
+            weather: data.weather || prev.weather,
+            baro: data.baro || prev.baro,
+            wind: data.wind || prev.wind,
+          }))
+        }
+      }).catch(() => {})
+  }, [location])
 
   function addCatch() {
     setCatches(prev => [...prev, {
@@ -176,6 +211,9 @@ export default function NewTripForm() {
         <span>{location?.name}</span>
         <button onClick={() => setStep(1)} className={styles.changeBtn}>Change</button>
       </div>
+
+      {/* Mini map */}
+      {location && <LocationMiniMap lat={location.lat} lng={location.lng} />}
 
       {/* Title */}
       <div className={styles.field}>
