@@ -131,38 +131,41 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       )}
 
       {/* Expanded catch modal */}
-      {expandedCatch && (
-        <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
-          <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
-            <button className={styles.closeModal} onClick={() => setExpandedCatch(null)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-            {expandedCatch.photo_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={expandedCatch.photo_url} alt={expandedCatch.species} className={styles.expandedImg} />
-            )}
-            <div className={styles.expandedBody}>
-              <h3 className={styles.expandedSpecies}>{expandedCatch.species || 'Unknown'}</h3>
-              <div className={styles.expandedGrid}>
-                <div><span className={styles.catchLabel}>Length</span><span className={styles.expandedVal}>{expandedCatch.length ? `${expandedCatch.length} in` : '—'}</span></div>
-                <div><span className={styles.catchLabel}>Fly</span><span className={styles.expandedVal}>{expandedCatch.fly || '—'}</span></div>
-                <div><span className={styles.catchLabel}>Fly Size</span><span className={styles.expandedVal}>{expandedCatch.fly_size ? `#${expandedCatch.fly_size}` : '—'}</span></div>
-                <div><span className={styles.catchLabel}>Time</span><span className={styles.expandedVal}>{expandedCatch.time_caught || '—'}</span></div>
-              </div>
-              {expandedCatch.notes && <p className={styles.expandedNotes}>{expandedCatch.notes}</p>}
-              <div className={styles.expandedActions}>
-                {expandedCatch.photo_url && (
-                  <button className={styles.shareModalBtn} onClick={() => { setExpandedCatch(null); setShareTarget(expandedCatch) }}>
-                    Share
-                  </button>
-                )}
+      {expandedCatch && (() => {
+        const idx = catches.findIndex(c => c.id === expandedCatch.id)
+        return (
+          <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
+            <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
+              {expandedCatch.photo_url && (
+                <button className={styles.expandedShare} onClick={() => { setExpandedCatch(null); setShareTarget(expandedCatch) }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                  Share
+                </button>
+              )}
+              {expandedCatch.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={expandedCatch.photo_url} alt={expandedCatch.species} className={styles.expandedImg} />
+              ) : (
+                <div className={styles.expandedNoPhoto} />
+              )}
+              <div className={styles.expandedOverlay}>
+                <div className={styles.expandedLine} />
+                <h3 className={styles.expandedSpecies}>{expandedCatch.species || 'Unknown'}</h3>
+                <div className={styles.expandedStats}>
+                  {expandedCatch.length && <div><span className={styles.expandedStatLabel}>Length</span><span className={styles.expandedStatVal}>{expandedCatch.length}&quot;</span></div>}
+                  {expandedCatch.fly_size && <div><span className={styles.expandedStatLabel}>Size</span><span className={styles.expandedStatVal}>#{expandedCatch.fly_size}</span></div>}
+                  {expandedCatch.fly && <div><span className={styles.expandedStatLabel}>Fly</span><span className={styles.expandedStatVal}>{expandedCatch.fly}</span></div>}
+                </div>
+                <div className={styles.expandedMeta}>{idx + 1} of {catches.length} catches</div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
