@@ -51,6 +51,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                       src={heroPhoto}
                       alt={trip.title}
                       className={styles.heroImg}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   ) : (
                     <div className={styles.heroPlaceholder}>
