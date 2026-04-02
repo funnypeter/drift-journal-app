@@ -4,6 +4,52 @@
   padding: 0 16px 24px;
 }
 
+/* App header */
+.appHeader {
+  padding: 20px 0 4px;
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.logoText {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Section header */
+.header {
+  padding: 16px 0 16px;
+}
+
+.title {
+  font-family: var(--serif);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.titleLine {
+  width: 40px;
+  height: 3px;
+  background: var(--teal);
+  border-radius: 2px;
+}
+
 /* Feed */
 .feed {
   display: flex;
@@ -101,6 +147,18 @@
   background: var(--bg2);
   padding: 4px 10px;
   border-radius: 20px;
+}
+
+.notesPreview {
+  font-size: 0.82rem;
+  color: var(--ink2);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.readMore {
+  font-weight: 700;
+  color: var(--teal);
 }
 
 /* Empty state */

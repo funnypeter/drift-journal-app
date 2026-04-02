@@ -16,10 +16,23 @@ const BG_COLORS = [
 export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
   const [trips] = useState(initialTrips)
 
-  const totalCatches = trips.reduce((n, t) => n + (t.catches?.length || 0), 0)
-
   return (
     <div className={styles.container}>
+      {/* App header */}
+      <div className={styles.appHeader}>
+        <div className={styles.logoRow}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="Drift Journal" className={styles.logoIcon} />
+          <span className={styles.logoText}>Drift Journal</span>
+        </div>
+      </div>
+
+      {/* Section title */}
+      <div className={styles.header}>
+        <h1 className={styles.title}>Recent Journeys</h1>
+        <div className={styles.titleLine} />
+      </div>
+
       {/* Feed */}
       {trips.length === 0 ? (
         <div className={styles.empty}>
@@ -38,8 +51,8 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           {trips.map((trip, i) => {
             const heroPhoto = trip.hero_photo_url ||
               trip.catches?.find(c => c.photo_url)?.photo_url || null
-            const catchCount = trip.catches?.length || 0
             const bg = trip.bg_color || BG_COLORS[i % BG_COLORS.length]
+            const notesPreview = trip.notes ? (trip.notes.length > 120 ? trip.notes.slice(0, 120) + '...' : trip.notes) : null
 
             return (
               <Link key={trip.id} href={`/trips/${trip.id}`} className={styles.card}>
@@ -100,6 +113,16 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                         </span>
                       )}
                     </div>
+                  )}
+
+                  {/* Notes preview */}
+                  {notesPreview && (
+                    <p className={styles.notesPreview}>
+                      {notesPreview}
+                      {trip.notes && trip.notes.length > 120 && (
+                        <span className={styles.readMore}> — Read more</span>
+                      )}
+                    </p>
                   )}
                 </div>
               </Link>
