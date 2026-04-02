@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Trip } from '@/types'
 import styles from './feed.module.css'
 
@@ -21,27 +20,6 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
 
   return (
     <div className={styles.container}>
-      {/* Header */}
-      <div className={styles.header}>
-        <h1 className={styles.title}>Recent Journeys</h1>
-        <div className={styles.titleLine} />
-      </div>
-
-      {/* Stats bar */}
-      {trips.length > 0 && (
-        <div className={styles.stats}>
-          <div className={styles.stat}>
-            <span className={styles.statNum}>{trips.length}</span>
-            <span className={styles.statLabel}>Trips</span>
-          </div>
-          <div className={styles.statDivider} />
-          <div className={styles.stat}>
-            <span className={styles.statNum}>{totalCatches}</span>
-            <span className={styles.statLabel}>Catches</span>
-          </div>
-        </div>
-      )}
-
       {/* Feed */}
       {trips.length === 0 ? (
         <div className={styles.empty}>
@@ -68,12 +46,11 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                 {/* Hero image */}
                 <div className={styles.heroWrap} style={{ background: bg }}>
                   {heroPhoto ? (
-                    <Image
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                       src={heroPhoto}
                       alt={trip.title}
-                      fill
-                      style={{ objectFit: 'cover' }}
-                      sizes="(max-width: 768px) 100vw, 600px"
+                      className={styles.heroImg}
                     />
                   ) : (
                     <div className={styles.heroPlaceholder}>
@@ -83,9 +60,6 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                       </svg>
                     </div>
                   )}
-                  {catchCount > 0 && (
-                    <div className={styles.catchBadge}>{catchCount} catch{catchCount !== 1 ? 'es' : ''}</div>
-                  )}
                 </div>
 
                 {/* Card info */}
@@ -93,7 +67,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                   <h2 className={styles.tripTitle}>{trip.title}</h2>
                   <div className={styles.tripMeta}>
                     <span className={styles.tripDate}>
-                      {new Date(trip.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
                     </span>
                     {trip.location && (
                       <>
@@ -103,12 +77,27 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                     )}
                   </div>
 
-                  {/* Conditions summary */}
-                  {(trip.air_temp || trip.weather || trip.water_temp) && (
+                  {/* Conditions pills */}
+                  {(trip.flow || trip.water_temp || trip.weather) && (
                     <div className={styles.conditions}>
-                      {trip.air_temp && <span>{trip.air_temp}</span>}
-                      {trip.weather && <span>{trip.weather}</span>}
-                      {trip.water_temp && <span>Water {trip.water_temp}°F</span>}
+                      {trip.flow && (
+                        <span className={styles.pill}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                          {trip.flow} CFS
+                        </span>
+                      )}
+                      {trip.water_temp && (
+                        <span className={styles.pill}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                          {trip.water_temp}°F
+                        </span>
+                      )}
+                      {trip.weather && (
+                        <span className={styles.pill}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+                          {trip.weather}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Trip, Catch } from '@/types'
 import ShareCard from '@/components/share/ShareCard'
 import styles from './TripDetail.module.css'
@@ -80,7 +79,8 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                 {/* Photo */}
                 <div className={styles.catchPhoto}>
                   {c.photo_url ? (
-                    <Image src={c.photo_url} alt={c.species} fill style={{ objectFit: 'cover' }} sizes="200px"/>
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.photo_url} alt={c.species} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
                   ) : (
                     <div className={styles.catchNoPhoto}>
                       <svg viewBox="0 0 40 28" fill="none"><path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
