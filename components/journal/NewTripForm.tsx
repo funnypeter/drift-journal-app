@@ -131,10 +131,17 @@ export default function NewTripForm() {
         if (c.photoFile) {
           const formData = new FormData()
           formData.append('file', c.photoFile)
-          const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
-          if (uploadResp.ok) {
-            const uploadData = await uploadResp.json()
-            photoUrl = uploadData.url
+          try {
+            const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
+            if (uploadResp.ok) {
+              const uploadData = await uploadResp.json()
+              photoUrl = uploadData.url
+            } else {
+              const errData = await uploadResp.json().catch(() => ({}))
+              console.error('Upload failed:', uploadResp.status, errData)
+            }
+          } catch (e) {
+            console.error('Upload error:', e)
           }
         }
         photoUrls.push(photoUrl)
@@ -158,8 +165,8 @@ export default function NewTripForm() {
           }),
         })
         if (!catchResp.ok) {
-          const errData = await catchResp.json()
-          console.error('Catch save error:', errData)
+          const errData = await catchResp.json().catch(() => ({}))
+          throw new Error(errData.error || `Failed to save catch #${i + 1}`)
         }
       }
 

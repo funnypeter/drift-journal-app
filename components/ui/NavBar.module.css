@@ -20,7 +20,7 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 8px 20px;
+  padding: 8px 16px;
   text-decoration: none;
   color: var(--muted);
   font-size: 10px;
@@ -40,9 +40,17 @@
   color: var(--teal);
 }
 
+.logWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+}
+
 .logBtn {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   background: var(--teal);
   border-radius: 50%;
   display: flex;
@@ -53,11 +61,20 @@
 }
 
 .logBtn svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .logBtn:active {
   transform: scale(0.92);
   box-shadow: 0 2px 8px rgba(30,77,67,0.3);
+}
+
+.logLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-family: var(--sans);
 }
