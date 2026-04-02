@@ -172,6 +172,12 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
             </button>
           ))}
         </div>
+        <input
+          className={styles.customFly}
+          value={!flyOptions.includes(catch_.fly || '') ? (catch_.fly || '') : ''}
+          onChange={e => onChange({ fly: e.target.value })}
+          placeholder="Or type a custom fly..."
+        />
       </div>
 
       {/* Fly size */}
