@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
 import ShareCard from '@/components/share/ShareCard'
@@ -17,45 +18,69 @@ function getMoonPhase(dateStr: string) {
 }
 
 export default function TripDetail({ trip }: { trip: Trip }) {
+  const router = useRouter()
   const [shareTarget, setShareTarget] = useState<Catch | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const catches = trip.catches || []
 
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const resp = await fetch(`/api/trips/${trip.id}`, { method: 'DELETE' })
+      if (resp.ok) {
+        router.push('/dashboard')
+      } else {
+        const data = await resp.json()
+        alert(data.error || 'Failed to delete')
+        setDeleting(false)
+      }
+    } catch {
+      alert('Failed to delete')
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className={styles.container}>
-      {/* Back button */}
+      {/* Top bar */}
       <div className={styles.topBar}>
         <Link href="/dashboard" className={styles.backBtn}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <path d="M15 18l-6-6 6-6"/>
           </svg>
-          Back
         </Link>
-        <Link href={`/trips/${trip.id}/edit`} className={styles.editBtn}>Edit</Link>
-      </div>
-
-      {/* Title */}
-      <div className={styles.titleSection}>
-        <h1 className={styles.title}>{trip.title}</h1>
-        <div className={styles.meta}>
-          {new Date(trip.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          {trip.location && <span> · {trip.location}</span>}
+        <div className={styles.topActions}>
+          <Link href={`/trips/${trip.id}/edit`} className={styles.editBtn}>Edit</Link>
+          <button className={styles.deleteBtn} onClick={() => setShowDeleteConfirm(true)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Conditions */}
-      {(trip.air_temp || trip.weather || trip.water_temp || trip.flow || trip.baro || trip.wind) && (
-        <div className={styles.conditions}>
-          <div className={styles.condLabel}>Live Conditions</div>
-          <div className={styles.condGrid}>
-            {trip.air_temp && <Cond label="Air Temp" value={trip.air_temp} />}
-            {trip.weather && <Cond label="Weather" value={trip.weather} />}
-            {trip.water_temp && <Cond label="Water Temp" value={`${trip.water_temp}°F`} />}
-            {trip.flow && <Cond label="Flow" value={`${trip.flow} CFS`} />}
-            {trip.baro && <Cond label="Barometric" value={`${trip.baro} inHg`} />}
-            {trip.wind && <Cond label="Wind" value={trip.wind} />}
-            {trip.moon && <Cond label="Moon" value={getMoonPhase(trip.date)} />}
-          </div>
+      {/* Date & Title */}
+      <div className={styles.dateLabel}>
+        {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
+      </div>
+      <h1 className={styles.title}>{trip.title}</h1>
+      <div className={styles.locationLine}>
+        {trip.location}
+        {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
+      </div>
+
+      {/* Conditions grid */}
+      {(trip.flow || trip.water_temp || trip.baro || trip.air_temp || trip.weather || trip.moon) && (
+        <div className={styles.condGrid}>
+          {trip.flow && <Cond label="Water Flow" value={`${trip.flow} cfs`} />}
+          {trip.water_temp && <Cond label="Water Temp" value={`${trip.water_temp}°F`} />}
+          {trip.baro && <Cond label="Barometric" value={`${trip.baro} inHg`} />}
+          {trip.air_temp && <Cond label="Air Temp" value={trip.air_temp} />}
+          {trip.weather && <Cond label="Weather" value={trip.weather} />}
+          <Cond label="Moon" value={getMoonPhase(trip.date)} />
         </div>
       )}
 
@@ -69,10 +94,10 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       {/* Catches */}
       {catches.length > 0 && (
         <div className={styles.catches}>
-          <h2 className={styles.catchTitle}>
-            Catch Gallery
+          <div className={styles.catchHeader}>
+            <h2 className={styles.catchTitle}>Catch Gallery</h2>
             <span className={styles.catchCount}>({catches.length} total)</span>
-          </h2>
+          </div>
           <div className={styles.catchGrid}>
             {catches.map(c => (
               <div key={c.id} className={styles.catchCard}>
@@ -80,20 +105,14 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                 <div className={styles.catchPhoto}>
                   {c.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.photo_url} alt={c.species} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+                    <img src={c.photo_url} alt={c.species} className={styles.catchImg} />
                   ) : (
                     <div className={styles.catchNoPhoto}>
                       <svg viewBox="0 0 40 28" fill="none"><path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                     </div>
                   )}
-                  {/* Share button */}
                   {c.photo_url && (
                     <button className={styles.shareBtn} onClick={() => setShareTarget(c)}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                      </svg>
                       Share
                     </button>
                   )}
@@ -101,11 +120,23 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
                 {/* Info */}
                 <div className={styles.catchInfo}>
-                  <div className={styles.catchSpecies}>{c.species || 'Unknown'}</div>
-                  <div className={styles.catchDetails}>
-                    <span><label>Length</label>{c.length ? `${c.length}"` : '—'}</span>
-                    <span><label>Fly</label>{c.fly || '—'}</span>
-                    <span><label>Size</label>{c.fly_size ? `#${c.fly_size}` : '—'}</span>
+                  <div className={styles.catchInfoGrid}>
+                    <div>
+                      <div className={styles.catchLabel}>Species</div>
+                      <div className={styles.catchValue}>{c.species || 'Unknown'}</div>
+                    </div>
+                    <div>
+                      <div className={styles.catchLabel}>Fly</div>
+                      <div className={styles.catchValue}>{c.fly || '—'}</div>
+                    </div>
+                    <div>
+                      <div className={styles.catchLabel}>Length</div>
+                      <div className={styles.catchValue}>{c.length ? `${c.length} in` : '—'}</div>
+                    </div>
+                    <div>
+                      <div className={styles.catchLabel}>Fly Size</div>
+                      <div className={styles.catchValue}>{c.fly_size ? `#${c.fly_size}` : '—'}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -114,13 +145,25 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className={styles.overlay} onClick={() => setShowDeleteConfirm(false)}>
+          <div className={styles.confirmBox} onClick={e => e.stopPropagation()}>
+            <h3>Delete this trip?</h3>
+            <p>This will permanently delete "{trip.title}" and all its catches.</p>
+            <div className={styles.confirmActions}>
+              <button className={styles.cancelBtn} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button className={styles.confirmDeleteBtn} onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Share Card Modal */}
       {shareTarget && (
-        <ShareCard
-          trip={trip}
-          catch_={shareTarget}
-          onClose={() => setShareTarget(null)}
-        />
+        <ShareCard trip={trip} catch_={shareTarget} onClose={() => setShareTarget(null)} />
       )}
     </div>
   )

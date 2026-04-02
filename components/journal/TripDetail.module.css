@@ -14,14 +14,16 @@
 .backBtn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
   color: var(--ink2);
   text-decoration: none;
-  font-weight: 600;
+  padding: 4px;
 }
 
-.backBtn svg { width: 16px; height: 16px; }
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .editBtn {
   background: var(--teal);
@@ -31,9 +33,36 @@
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+  font-family: var(--sans);
 }
 
-.titleSection { padding: 8px 0 20px; }
+.deleteBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.deleteBtn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Title section */
+.dateLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding-top: 8px;
+}
 
 .title {
   font-family: var(--serif);
@@ -41,41 +70,37 @@
   font-size: 2rem;
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.15;
   margin-bottom: 6px;
 }
 
-.meta {
+.locationLine {
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.stateLink {
+  color: var(--teal);
+  font-weight: 600;
 }
 
 /* Conditions */
-.conditions {
-  background: white;
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow);
-}
-
-.condLabel {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-
 .condGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
 }
 
-.condItem {}
+.condItem {
+  background: var(--bg);
+  padding: 12px 14px;
+}
 
 .condItemLabel {
   font-size: 9px;
@@ -83,38 +108,41 @@
   letter-spacing: 0.07em;
   color: var(--muted);
   margin-bottom: 3px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .condItemValue {
-  font-size: 1rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--ink);
 }
 
 /* Notes */
 .notes {
-  background: white;
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow);
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--ink2);
+  margin-bottom: 20px;
+  padding: 0 2px;
 }
 
 /* Catches */
 .catches { margin-top: 8px; }
 
-.catchTitle {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: var(--ink);
-  margin-bottom: 16px;
+.catchHeader {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.catchTitle {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .catchCount {
@@ -134,16 +162,23 @@
 }
 
 .catchCard {
-  background: white;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow);
 }
 
 .catchPhoto {
   position: relative;
   aspect-ratio: 4/3;
   background: linear-gradient(135deg, #1e4d43, #2d6a4f);
+}
+
+.catchImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .catchNoPhoto {
@@ -161,54 +196,108 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(255,255,255,0.18);
-  backdrop-filter: blur(8px);
-  border: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
   color: white;
-  border-radius: 20px;
+  border: none;
+  border-radius: 16px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   font-family: var(--sans);
 }
-
-.shareBtn svg { width: 11px; height: 11px; }
 
 .catchInfo {
   padding: 10px 12px 12px;
 }
 
-.catchSpecies {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 6px;
+.catchInfoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-.catchDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.catchDetails span {
-  display: flex;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--ink2);
-}
-
-.catchDetails label {
-  font-size: 9px;
+.catchLabel {
+  font-size: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--muted);
   font-weight: 700;
-  min-width: 40px;
+  margin-bottom: 1px;
 }
+
+.catchValue {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Delete confirmation overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.confirmBox {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 340px;
+  width: 100%;
+}
+
+.confirmBox h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.confirmBox p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 10px;
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink2);
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.confirmDeleteBtn {
+  flex: 1;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  background: var(--danger);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.confirmDeleteBtn:disabled { opacity: 0.6; }
