@@ -166,7 +166,11 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.1s;
 }
+
+.catchCard:active { transform: scale(0.97); }
 
 .catchPhoto {
   position: relative;
@@ -301,3 +305,98 @@
 }
 
 .confirmDeleteBtn:disabled { opacity: 0.6; }
+
+/* Expanded catch modal */
+.expandedCard {
+  background: white;
+  border-radius: 16px;
+  max-width: 400px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.closeModal {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 1;
+}
+
+.expandedImg {
+  width: 100%;
+  display: block;
+}
+
+.expandedBody {
+  padding: 16px 20px 20px;
+}
+
+.expandedSpecies {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+
+.expandedGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.expandedGrid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expandedVal {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.expandedNotes {
+  font-size: 0.85rem;
+  color: var(--ink2);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.expandedActions {
+  display: flex;
+  gap: 8px;
+}
+
+.shareModalBtn {
+  background: var(--teal);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+}

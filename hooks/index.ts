@@ -100,17 +100,22 @@ export function useTrip(id: string) {
 // ── useProfile ────────────────────────────────────────────────────────────────
 export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const supabase = createClient()
 
   useEffect(() => {
-    supabase.from('profiles').select('*').single()
-      .then(({ data }: { data: Profile | null }) => { if (data) setProfile(data) })
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then((data: Profile) => { if (data && !('error' in data)) setProfile(data) })
+      .catch(() => {})
   }, [])
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    const { data, error } = await supabase
-      .from('profiles').update(updates).select().single()
-    if (error) throw error
+    const resp = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    if (!resp.ok) throw new Error('Failed to update profile')
+    const data = await resp.json()
     setProfile(data)
     return data
   }

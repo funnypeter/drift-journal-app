@@ -20,6 +20,7 @@ function getMoonPhase(dateStr: string) {
 export default function TripDetail({ trip }: { trip: Trip }) {
   const router = useRouter()
   const [shareTarget, setShareTarget] = useState<Catch | null>(null)
+  const [expandedCatch, setExpandedCatch] = useState<Catch | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -100,8 +101,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
           </div>
           <div className={styles.catchGrid}>
             {catches.map(c => (
-              <div key={c.id} className={styles.catchCard}>
-                {/* Photo */}
+              <div key={c.id} className={styles.catchCard} onClick={() => setExpandedCatch(c)}>
                 <div className={styles.catchPhoto}>
                   {c.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -111,14 +111,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                       <svg viewBox="0 0 40 28" fill="none"><path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                     </div>
                   )}
-                  {c.photo_url && (
-                    <button className={styles.shareBtn} onClick={() => setShareTarget(c)}>
-                      Share
-                    </button>
-                  )}
                 </div>
-
-                {/* Info */}
                 <div className={styles.catchInfo}>
                   <div className={styles.catchInfoGrid}>
                     <div>
@@ -126,16 +119,8 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                       <div className={styles.catchValue}>{c.species || 'Unknown'}</div>
                     </div>
                     <div>
-                      <div className={styles.catchLabel}>Fly</div>
-                      <div className={styles.catchValue}>{c.fly || '—'}</div>
-                    </div>
-                    <div>
                       <div className={styles.catchLabel}>Length</div>
                       <div className={styles.catchValue}>{c.length ? `${c.length} in` : '—'}</div>
-                    </div>
-                    <div>
-                      <div className={styles.catchLabel}>Fly Size</div>
-                      <div className={styles.catchValue}>{c.fly_size ? `#${c.fly_size}` : '—'}</div>
                     </div>
                   </div>
                 </div>
@@ -145,12 +130,46 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
+      {/* Expanded catch modal */}
+      {expandedCatch && (
+        <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
+          <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
+            <button className={styles.closeModal} onClick={() => setExpandedCatch(null)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            {expandedCatch.photo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={expandedCatch.photo_url} alt={expandedCatch.species} className={styles.expandedImg} />
+            )}
+            <div className={styles.expandedBody}>
+              <h3 className={styles.expandedSpecies}>{expandedCatch.species || 'Unknown'}</h3>
+              <div className={styles.expandedGrid}>
+                <div><span className={styles.catchLabel}>Length</span><span className={styles.expandedVal}>{expandedCatch.length ? `${expandedCatch.length} in` : '—'}</span></div>
+                <div><span className={styles.catchLabel}>Fly</span><span className={styles.expandedVal}>{expandedCatch.fly || '—'}</span></div>
+                <div><span className={styles.catchLabel}>Fly Size</span><span className={styles.expandedVal}>{expandedCatch.fly_size ? `#${expandedCatch.fly_size}` : '—'}</span></div>
+                <div><span className={styles.catchLabel}>Time</span><span className={styles.expandedVal}>{expandedCatch.time_caught || '—'}</span></div>
+              </div>
+              {expandedCatch.notes && <p className={styles.expandedNotes}>{expandedCatch.notes}</p>}
+              <div className={styles.expandedActions}>
+                {expandedCatch.photo_url && (
+                  <button className={styles.shareModalBtn} onClick={() => { setExpandedCatch(null); setShareTarget(expandedCatch) }}>
+                    Share
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation */}
       {showDeleteConfirm && (
         <div className={styles.overlay} onClick={() => setShowDeleteConfirm(false)}>
           <div className={styles.confirmBox} onClick={e => e.stopPropagation()}>
             <h3>Delete this trip?</h3>
-            <p>This will permanently delete "{trip.title}" and all its catches.</p>
+            <p>This will permanently delete &ldquo;{trip.title}&rdquo; and all its catches.</p>
             <div className={styles.confirmActions}>
               <button className={styles.cancelBtn} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
               <button className={styles.confirmDeleteBtn} onClick={handleDelete} disabled={deleting}>
