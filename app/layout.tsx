@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   title: 'Drift Journal',
   description: 'Fly fishing trip journal with live USGS conditions and AI fish identification',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
+  },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Drift Journal' },
 }
 
