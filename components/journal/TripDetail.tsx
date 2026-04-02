@@ -86,16 +86,14 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       )}
 
       {/* Conditions grid */}
-      {(trip.flow || trip.water_temp || trip.baro || trip.air_temp || trip.weather || trip.moon) && (
-        <div className={styles.condGrid}>
-          {trip.flow && <Cond label="Water Flow" value={`${trip.flow} cfs`} />}
-          {trip.water_temp && <Cond label="Water Temp" value={`${trip.water_temp}°F`} />}
-          {trip.baro && <Cond label="Barometric" value={`${trip.baro} inHg`} />}
-          {trip.air_temp && <Cond label="Air Temp" value={trip.air_temp} />}
-          {trip.weather && <Cond label="Weather" value={trip.weather} />}
-          <Cond label="Moon" value={getMoonPhase(trip.date)} />
-        </div>
-      )}
+      <div className={styles.condGrid}>
+        <Cond label="Water Flow" value={trip.flow ? `${trip.flow} cfs` : 'N/A'} />
+        <Cond label="Water Temp" value={trip.water_temp ? `${trip.water_temp}°F` : 'N/A'} />
+        <Cond label="Barometric" value={trip.baro ? `${trip.baro} inHg` : 'N/A'} />
+        <Cond label="Air Temp" value={trip.air_temp || 'N/A'} />
+        <Cond label="Weather" value={trip.weather || 'N/A'} />
+        <Cond label="Moon" value={getMoonPhase(trip.date)} />
+      </div>
 
       {/* Notes */}
       {trip.notes && (
