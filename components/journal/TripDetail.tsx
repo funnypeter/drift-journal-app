@@ -9,6 +9,7 @@ import ShareCard from '@/components/share/ShareCard'
 import styles from './TripDetail.module.css'
 
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
+const FullMap = dynamic(() => import('./FullMap'), { ssr: false })
 
 function getMoonPhase(dateStr: string) {
   const date = new Date(dateStr)
@@ -26,6 +27,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   const [expandedCatch, setExpandedCatch] = useState<Catch | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showFullMap, setShowFullMap] = useState(false)
 
   const catches = trip.catches || []
 
@@ -78,7 +80,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
       {/* Map */}
       {trip.lat && trip.lng && (
-        <div className={styles.mapWrap}>
+        <div className={styles.mapWrap} onClick={() => setShowFullMap(true)} style={{ cursor: 'pointer' }}>
           <LocationMiniMap lat={trip.lat} lng={trip.lng} />
         </div>
       )}
@@ -184,6 +186,21 @@ export default function TripDetail({ trip }: { trip: Trip }) {
           </div>
         )
       })()}
+
+      {/* Full map modal */}
+      {showFullMap && trip.lat && trip.lng && (
+        <div className={styles.overlay} onClick={() => setShowFullMap(false)}>
+          <div className={styles.fullMapCard} onClick={e => e.stopPropagation()}>
+            <button className={styles.fullMapClose} onClick={() => setShowFullMap(false)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <div className={styles.fullMapTitle}>{trip.location}</div>
+            <FullMap lat={trip.lat} lng={trip.lng} />
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
