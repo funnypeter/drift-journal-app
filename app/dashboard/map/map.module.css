@@ -115,3 +115,12 @@
   color: var(--muted);
   margin-top: 1px;
 }
+
+.cardLink {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--teal);
+  text-decoration: none;
+  margin-top: 3px;
+  display: inline-block;
+}
