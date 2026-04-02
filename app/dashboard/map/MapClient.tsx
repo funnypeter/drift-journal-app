@@ -36,7 +36,7 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
 
     // Add markers
     initialTrips.forEach(t => {
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
+      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup' })
         .setHTML(`<a href="/trips/${t.id}" style="font-weight:700;color:#1e4d43;text-decoration:none;font-size:14px">${t.title}</a><br/><span style="font-size:12px;color:#666">${new Date(t.date).toLocaleDateString()}</span><br/><a href="/trips/${t.id}" style="font-size:11px;color:#1e4d43;font-weight:600">View entry &rarr;</a>`)
 
       const marker = new mapboxgl.Marker({ color: '#1e4d43' })

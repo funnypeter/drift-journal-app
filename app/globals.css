@@ -33,6 +33,16 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
 
+/* Mapbox popup overrides */
+.drift-popup .mapboxgl-popup-content {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.drift-popup .mapboxgl-popup-tip {
+  display: none;
+}
+
 /* Typography */
 .serif { font-family: var(--serif); }
 .italic { font-style: italic; }
