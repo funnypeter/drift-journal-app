@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
 import ShareCard from '@/components/share/ShareCard'
 import styles from './TripDetail.module.css'
+
+const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
 
 function getMoonPhase(dateStr: string) {
   const date = new Date(dateStr)
@@ -73,6 +76,13 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
       </div>
 
+      {/* Map */}
+      {trip.lat && trip.lng && (
+        <div className={styles.mapWrap}>
+          <LocationMiniMap lat={trip.lat} lng={trip.lng} />
+        </div>
+      )}
+
       {/* Conditions grid */}
       {(trip.flow || trip.water_temp || trip.baro || trip.air_temp || trip.weather || trip.moon) && (
         <div className={styles.condGrid}>
@@ -119,8 +129,16 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                       <div className={styles.catchValue}>{c.species || 'Unknown'}</div>
                     </div>
                     <div>
+                      <div className={styles.catchLabel}>Fly</div>
+                      <div className={styles.catchValue}>{c.fly || '—'}</div>
+                    </div>
+                    <div>
                       <div className={styles.catchLabel}>Length</div>
                       <div className={styles.catchValue}>{c.length ? `${c.length} in` : '—'}</div>
+                    </div>
+                    <div>
+                      <div className={styles.catchLabel}>Fly Size</div>
+                      <div className={styles.catchValue}>{c.fly_size ? `#${c.fly_size}` : '—'}</div>
                     </div>
                   </div>
                 </div>

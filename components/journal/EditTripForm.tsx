@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import type { Trip, Catch } from '@/types'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
@@ -15,9 +14,34 @@ interface CatchDraft extends Partial<Catch> {
   _delete?: boolean
 }
 
+function compressForUpload(file: File, maxDim: number, quality: number): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+      if (width <= maxDim && height <= maxDim && file.size < 3 * 1024 * 1024) {
+        resolve(file)
+        return
+      }
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => {
+        resolve(new File([blob!], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+      }, 'image/jpeg', quality)
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export default function EditTripForm({ trip }: { trip: Trip }) {
   const router = useRouter()
-  const supabase = createClient()
 
   const [title, setTitle] = useState(trip.title)
   const [date, setDate] = useState(trip.date)
@@ -37,6 +61,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
       photoPreview: c.photo_url || undefined,
     }))
   )
+  // Find current hero index
+  const initialHero = (trip.catches || []).findIndex(c => c.photo_url === trip.hero_photo_url)
+  const [heroIndex, setHeroIndex] = useState<number>(initialHero >= 0 ? initialHero : 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -64,43 +91,54 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     setSaving(true)
     setError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not logged in')
-
-      // Update trip
-      await supabase.from('trips').update({
-        title, date, notes,
-        location: location.name, state: location.state,
-        lat: location.lat, lng: location.lng,
-        ...conditions,
-      }).eq('id', trip.id)
+      // Update trip via API
+      const tripResp = await fetch(`/api/trips/${trip.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title, date, notes,
+          location: location.name, state: location.state,
+          lat: location.lat, lng: location.lng,
+          ...conditions,
+        }),
+      })
+      if (!tripResp.ok) {
+        const errData = await tripResp.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to update trip')
+      }
 
       // Handle catches
-      let heroUrl = trip.hero_photo_url || null
+      const photoUrls: (string | null)[] = []
       for (let i = 0; i < catches.length; i++) {
         const c = catches[i]
 
         if (c._delete && c.id) {
-          await supabase.from('catches').delete().eq('id', c.id)
+          await fetch('/api/catches', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: c.id }),
+          })
+          photoUrls.push(null)
           continue
         }
 
         let photoUrl = c.photo_url || null
         if (c.photoFile) {
-          const catchId = c.id || crypto.randomUUID()
-          const ext = c.photoFile.name.split('.').pop() || 'jpg'
-          const path = `${user.id}/${catchId}.${ext}`
-          const { data: uploaded } = await supabase.storage
-            .from('catch-photos').upload(path, c.photoFile, { upsert: true, contentType: c.photoFile.type })
-          if (uploaded) {
-            const { data: { publicUrl } } = supabase.storage.from('catch-photos').getPublicUrl(uploaded.path)
-            photoUrl = publicUrl
-            if (!heroUrl) heroUrl = photoUrl
-          }
+          try {
+            const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
+            const formData = new FormData()
+            formData.append('file', compressed)
+            const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
+            if (uploadResp.ok) {
+              const uploadData = await uploadResp.json()
+              photoUrl = uploadData.url
+            }
+          } catch {}
         }
+        photoUrls.push(photoUrl)
 
         const catchData = {
-          trip_id: trip.id, user_id: user.id,
+          trip_id: trip.id,
           species: c.species || 'Unknown',
           length: c.length || null,
           fly: c.fly || null, fly_category: c.fly_category, fly_size: c.fly_size,
@@ -109,14 +147,28 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         }
 
         if (c.id) {
-          await supabase.from('catches').update(catchData).eq('id', c.id)
+          await fetch('/api/catches', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: c.id, ...catchData }),
+          })
         } else {
-          await supabase.from('catches').insert({ ...catchData, id: crypto.randomUUID() })
+          await fetch('/api/catches', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(catchData),
+          })
         }
       }
 
-      if (heroUrl && heroUrl !== trip.hero_photo_url) {
-        await supabase.from('trips').update({ hero_photo_url: heroUrl }).eq('id', trip.id)
+      // Update hero photo
+      const heroPhotoUrl = photoUrls[heroIndex] || photoUrls.find(u => u) || null
+      if (heroPhotoUrl) {
+        await fetch(`/api/trips/${trip.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hero_photo_url: heroPhotoUrl }),
+        })
       }
 
       router.push(`/trips/${trip.id}`)
@@ -127,6 +179,11 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
   }
 
   const visibleCatches = catches.filter(c => !c._delete)
+  // Map visible index to actual index for hero
+  const visibleToActual = catches.reduce<number[]>((acc, c, i) => {
+    if (!c._delete) acc.push(i)
+    return acc
+  }, [])
 
   return (
     <div className={styles.container}>
@@ -136,8 +193,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
-        <h1 className={styles.stepTitle}>Edit Entry</h1>
       </div>
+      <div className={styles.stepLabel}>Edit Entry</div>
+      <h1 className={styles.stepTitle}>{title || trip.title}</h1>
 
       {/* Location */}
       <div className={styles.locBadge}>
@@ -178,10 +236,16 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           <h2 className={styles.catchTitle}>Catches</h2>
           <span className={styles.catchCount}>{visibleCatches.length}</span>
         </div>
-        {catches.map((c, i) => !c._delete && (
-          <CatchCard key={c.id || i} index={i} catch_={c as any}
-            onChange={(u) => updateCatch(i, u)} onRemove={() => removeCatch(i)} />
-        ))}
+        {catches.map((c, i) => {
+          if (c._delete) return null
+          return (
+            <CatchCard key={c.id || i} index={i} catch_={c as any}
+              onChange={(u) => updateCatch(i, u)} onRemove={() => removeCatch(i)}
+              isHero={heroIndex === i}
+              onSetHero={() => setHeroIndex(i)}
+            />
+          )
+        })}
         <button className={styles.addCatchBtn} onClick={addCatch}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>

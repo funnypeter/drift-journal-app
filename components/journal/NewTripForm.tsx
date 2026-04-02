@@ -127,11 +127,12 @@ export default function NewTripForm() {
         const c = catches[i]
         let photoUrl: string | null = null
 
-        // Upload photo via API route
+        // Upload photo — compress first to stay under Vercel's body limit
         if (c.photoFile) {
-          const formData = new FormData()
-          formData.append('file', c.photoFile)
           try {
+            const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
+            const formData = new FormData()
+            formData.append('file', compressed)
             const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
             if (uploadResp.ok) {
               const uploadData = await uploadResp.json()
@@ -324,4 +325,30 @@ export default function NewTripForm() {
 function randomDark() {
   const colors = ['#374a3a','#1a2e1c','#0d2b4e','#1a4a6e','#2a1a3a','#1a0a2a','#3a2a1a','#2a1a0a']
   return colors[Math.floor(Math.random() * colors.length)]
+}
+
+function compressForUpload(file: File, maxDim: number, quality: number): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+      if (width <= maxDim && height <= maxDim && file.size < 3 * 1024 * 1024) {
+        resolve(file) // already small enough
+        return
+      }
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => {
+        resolve(new File([blob!], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+      }, 'image/jpeg', quality)
+    }
+    img.src = URL.createObjectURL(file)
+  })
 }

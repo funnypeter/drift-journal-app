@@ -86,6 +86,10 @@
   font-weight: 600;
 }
 
+.mapWrap {
+  margin-bottom: 20px;
+}
+
 /* Conditions */
 .condGrid {
   display: grid;
