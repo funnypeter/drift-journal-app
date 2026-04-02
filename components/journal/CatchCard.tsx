@@ -23,9 +23,11 @@ interface Props {
   catch_: CatchDraft
   onChange: (updates: Partial<CatchDraft>) => void
   onRemove: () => void
+  isHero?: boolean
+  onSetHero?: () => void
 }
 
-export default function CatchCard({ index, catch_, onChange, onRemove }: Props) {
+export default function CatchCard({ index, catch_, onChange, onRemove, isHero, onSetHero }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const { identify, loading: identifying } = useIdentify()
   const { profile } = useProfile()
@@ -76,9 +78,19 @@ export default function CatchCard({ index, catch_, onChange, onRemove }: Props) 
         {catch_.photoPreview ? (
           <>
             <img src={catch_.photoPreview} alt="catch" className={styles.photo} />
-            <button className={styles.replaceBtn} onClick={e => { e.stopPropagation(); fileRef.current?.click() }}>
-              Replace
-            </button>
+            <div className={styles.photoActions}>
+              {onSetHero && (
+                <button
+                  className={`${styles.heroBtn} ${isHero ? styles.heroBtnActive : ''}`}
+                  onClick={e => { e.stopPropagation(); onSetHero() }}
+                >
+                  ★ Hero
+                </button>
+              )}
+              <button className={styles.replaceBtn} onClick={e => { e.stopPropagation(); fileRef.current?.click() }}>
+                Replace
+              </button>
+            </div>
             {identifying && (
               <div className={styles.identifying}>
                 <span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} />

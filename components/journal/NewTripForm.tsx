@@ -40,6 +40,7 @@ export default function NewTripForm() {
 
   // Catches
   const [catches, setCatches] = useState<CatchDraft[]>([])
+  const [heroIndex, setHeroIndex] = useState<number>(0)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -121,7 +122,7 @@ export default function NewTripForm() {
       const trip = await tripResp.json()
 
       // Upload catches
-      let heroPhotoUrl: string | null = null
+      const photoUrls: (string | null)[] = []
       for (let i = 0; i < catches.length; i++) {
         const c = catches[i]
         let photoUrl: string | null = null
@@ -134,9 +135,9 @@ export default function NewTripForm() {
           if (uploadResp.ok) {
             const uploadData = await uploadResp.json()
             photoUrl = uploadData.url
-            if (!heroPhotoUrl) heroPhotoUrl = photoUrl
           }
         }
+        photoUrls.push(photoUrl)
 
         // Create catch via API route
         const catchResp = await fetch('/api/catches', {
@@ -162,7 +163,8 @@ export default function NewTripForm() {
         }
       }
 
-      // Update hero photo
+      // Update hero photo — use selected hero, fallback to first photo
+      const heroPhotoUrl = photoUrls[heroIndex] || photoUrls.find(u => u) || null
       if (heroPhotoUrl) {
         await fetch(`/api/trips/${trip.id}`, {
           method: 'PATCH',
@@ -280,6 +282,8 @@ export default function NewTripForm() {
             catch_={c}
             onChange={(updates) => updateCatch(i, updates)}
             onRemove={() => removeCatch(i)}
+            isHero={heroIndex === i}
+            onSetHero={() => setHeroIndex(i)}
           />
         ))}
         <button className={styles.addCatchBtn} onClick={addCatch}>
