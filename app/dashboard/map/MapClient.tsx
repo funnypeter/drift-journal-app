@@ -36,8 +36,21 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
 
     // Add markers
     initialTrips.forEach(t => {
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup' })
-        .setHTML(`<a href="/trips/${t.id}" style="font-weight:700;color:#1e4d43;text-decoration:none;font-size:14px">${t.title}</a><br/><span style="font-size:12px;color:#666">${new Date(t.date).toLocaleDateString()}</span><br/><a href="/trips/${t.id}" style="font-size:11px;color:#1e4d43;font-weight:600">View entry &rarr;</a>`)
+      const catchCount = t.catches?.length || 0
+      const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup', maxWidth: '260px' })
+        .setHTML(`
+          <div style="padding:14px 16px;font-family:Inter,system-ui,sans-serif">
+            <div style="font-weight:800;font-size:15px;color:#1a1a1a;margin-bottom:4px">${t.title}</div>
+            <div style="font-size:12px;color:#8a8a7a;margin-bottom:8px">${t.location || ''} · ${dateStr}</div>
+            <div style="display:flex;gap:12px;font-size:12px;color:#4a4a4a;margin-bottom:10px">
+              <span>💧 ${t.flow ? t.flow + ' cfs' : 'N/A'}</span>
+              <span>🌡 ${t.water_temp ? t.water_temp + '°F' : 'N/A'}</span>
+            </div>
+            <div style="font-size:12px;color:#4a4a4a;margin-bottom:12px">🐟 ${catchCount} catch${catchCount !== 1 ? 'es' : ''}</div>
+            <a href="/trips/${t.id}" style="display:block;text-align:center;background:#1e4d43;color:white;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">View Entry →</a>
+          </div>
+        `)
 
       const marker = new mapboxgl.Marker({ color: '#1e4d43' })
         .setLngLat([t.lng!, t.lat!])

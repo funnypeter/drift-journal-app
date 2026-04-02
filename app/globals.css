@@ -35,12 +35,14 @@ html, body {
 
 /* Mapbox popup overrides */
 .drift-popup .mapboxgl-popup-content {
-  background: none;
-  box-shadow: none;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   padding: 0;
+  overflow: hidden;
 }
 .drift-popup .mapboxgl-popup-tip {
-  display: none;
+  border-top-color: white;
 }
 
 /* Typography */
