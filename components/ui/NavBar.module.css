@@ -49,10 +49,10 @@
 }
 
 .logBtn {
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   background: var(--teal);
-  border-radius: 50%;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
