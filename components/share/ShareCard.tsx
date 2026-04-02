@@ -5,11 +5,42 @@ import type { Trip, Catch, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
 import styles from './ShareCard.module.css'
 
+interface Tag { key: string; label: string; on: boolean }
+
+function buildTags(trip: Trip, catch_: Catch): Tag[] {
+  const tags: Tag[] = []
+  if (trip.location) tags.push({ key: 'location', label: trip.location.split(',')[0], on: true })
+  if (catch_.length) tags.push({ key: 'size', label: `${catch_.length}"`, on: true })
+  if (catch_.fly) tags.push({ key: 'fly', label: catch_.fly, on: true })
+  if (catch_.fly_size) tags.push({ key: 'flysize', label: `#${catch_.fly_size}`, on: true })
+  if (trip.flow) tags.push({ key: 'flow', label: `${trip.flow} CFS`, on: true })
+  if (trip.water_temp) tags.push({ key: 'watertemp', label: `${trip.water_temp}°F water`, on: false })
+  if (trip.date) {
+    const d = new Date(trip.date)
+    tags.push({ key: 'date', label: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(), on: false })
+  }
+  if (trip.weather) tags.push({ key: 'weather', label: trip.weather, on: false })
+  if (trip.baro) tags.push({ key: 'baro', label: `${trip.baro} inHg`, on: false })
+  if (trip.moon) tags.push({ key: 'moon', label: trip.moon, on: false })
+  return tags
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath()
+}
+
 export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch_: Catch; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [platform, setPlatform] = useState(PLATFORMS[0])
   const [downloading, setDownloading] = useState(false)
   const [imgOffset, setImgOffset] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [tags, setTags] = useState<Tag[]>(() => buildTags(trip, catch_))
   const dragRef = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 })
   const imgRef = useRef<HTMLImageElement | null>(null)
   const catches = trip.catches || []
@@ -29,11 +60,12 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     ctx.fillStyle = '#1e4d43'
     ctx.fillRect(0, 0, W, H)
 
-    // Draw image with offset
+    // Draw image with offset and zoom
     if (imgRef.current) {
       const img = imgRef.current
       const iw = img.width, ih = img.height
-      const scale = Math.max(W / iw, H / ih)
+      const baseScale = Math.max(W / iw, H / ih)
+      const scale = baseScale * zoom
       const sw = iw * scale, sh = ih * scale
       const ox = (W - sw) / 2 + imgOffset.x * (W / 400)
       const oy = (H - sh) / 2 + imgOffset.y * (H / 400)
@@ -41,29 +73,56 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     }
 
     // Bottom gradient
-    const botH = H * 0.35
+    const botH = H * 0.38
     const botGrad = ctx.createLinearGradient(0, H - botH, 0, H)
     botGrad.addColorStop(0, 'rgba(0,0,0,0)')
-    botGrad.addColorStop(0.6, 'rgba(0,0,0,0.5)')
-    botGrad.addColorStop(1, 'rgba(0,0,0,0.75)')
+    botGrad.addColorStop(0.5, 'rgba(0,0,0,0.45)')
+    botGrad.addColorStop(1, 'rgba(0,0,0,0.78)')
     ctx.fillStyle = botGrad
     ctx.fillRect(0, H - botH, W, botH)
 
+    // Active tags as pills at bottom
+    const activeTags = tags.filter(t => t.on)
+    const tagFontSize = Math.round(W * 0.024)
+    const tagPadX = Math.round(W * 0.018)
+    const tagPadY = Math.round(W * 0.01)
+    const tagGap = Math.round(W * 0.01)
+    const tagH = tagFontSize + tagPadY * 2
+    const tagLineH = tagH + tagGap
+    ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
+
+    // Wrap tags into rows
+    const rows: Array<Array<{ label: string; w: number }>> = [[]]
+    let rowW = 0
+    const maxRowW = W - PAD * 2
+    activeTags.forEach(tag => {
+      const tw = ctx.measureText(tag.label).width + tagPadX * 2
+      if (rowW + tw + tagGap > maxRowW && rows[rows.length - 1].length > 0) {
+        rows.push([]); rowW = 0
+      }
+      rows[rows.length - 1].push({ label: tag.label, w: tw })
+      rowW += tw + tagGap
+    })
+
     // Species name
-    const speciesSize = Math.round(W * 0.06)
+    const speciesSize = Math.round(W * 0.058)
     ctx.font = `italic 700 ${speciesSize}px "Playfair Display", Georgia, serif`
     ctx.fillStyle = 'white'
     ctx.shadowColor = 'rgba(0,0,0,0.5)'
     ctx.shadowBlur = 10
-    const speciesY = H - PAD - speciesSize * 2.8
+
+    const totalTagH = rows.length > 0 ? rows.length * tagLineH + tagGap : 0
+    const countSize = Math.round(W * 0.02)
+    const statsH = W * 0.035 * 2.5
+    const speciesY = H - PAD - countSize * 2 - totalTagH - statsH - speciesSize * 0.2
     ctx.fillText(catch_.species || 'Unknown', PAD, speciesY)
     ctx.shadowBlur = 0
 
     // Stats row
-    const labelSize = Math.round(W * 0.022)
-    const valSize = Math.round(W * 0.035)
+    const labelSize = Math.round(W * 0.02)
+    const valSize = Math.round(W * 0.032)
     let sx = PAD
-    const statsY = speciesY + labelSize * 1.5
+    const statsY = speciesY + labelSize * 1.8
 
     const stats: { label: string; value: string }[] = []
     if (catch_.length) stats.push({ label: 'LENGTH', value: `${catch_.length}"` })
@@ -80,11 +139,32 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       sx += ctx.measureText(s.value).width + W * 0.04
     })
 
+    // Tag pills
+    if (activeTags.length > 0) {
+      const pillStartY = statsY + valSize * 1.2 + tagGap * 2
+      let rowY = pillStartY
+      ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
+      rows.forEach(row => {
+        let tx = PAD
+        row.forEach(tag => {
+          roundRect(ctx, tx, rowY, tag.w, tagH, tagH / 2)
+          ctx.fillStyle = 'rgba(255,255,255,0.15)'
+          ctx.fill()
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+          ctx.lineWidth = 1
+          ctx.stroke()
+          ctx.fillStyle = 'white'
+          ctx.fillText(tag.label, tx + tagPadX, rowY + tagFontSize + tagPadY * 0.55)
+          tx += tag.w + tagGap
+        })
+        rowY += tagLineH
+      })
+    }
+
     // Catch count
-    const countSize = Math.round(W * 0.022)
     ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
     ctx.fillStyle = 'rgba(255,255,255,0.4)'
-    ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, H - PAD * 0.8)
+    ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, H - PAD * 0.7)
 
     // Logo watermark — top right
     const wmSize = Math.round(W * 0.025)
@@ -93,17 +173,15 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     ctx.textAlign = 'right'
     ctx.shadowColor = 'rgba(0,0,0,0.4)'
     ctx.shadowBlur = 6
-
-    // Draw logo icon
-    const logoSize = Math.round(W * 0.04)
-    const logoX = W - PAD - ctx.measureText('Drift Journal').width - logoSize - 8
     const logoY = PAD * 1.2
-
     ctx.fillText('Drift Journal', W - PAD, logoY + wmSize * 0.35)
     ctx.textAlign = 'left'
     ctx.shadowBlur = 0
 
-    // Logo icon (circle placeholder)
+    // Logo icon
+    const logoSize = Math.round(W * 0.04)
+    const textW = (() => { ctx.font = `italic 700 ${wmSize}px "Playfair Display", Georgia, serif`; return ctx.measureText('Drift Journal').width })()
+    const logoX = W - PAD - textW - logoSize - 8
     if (typeof window !== 'undefined') {
       const logoImg = new Image()
       logoImg.crossOrigin = 'anonymous'
@@ -117,7 +195,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       }
       logoImg.src = '/icon-192.png'
     }
-  }, [platform, imgOffset, catch_, catches.length, catchIndex])
+  }, [platform, imgOffset, zoom, tags, catch_, catches.length, catchIndex])
 
   // Load image
   useEffect(() => {
@@ -144,6 +222,10 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
   }
   function onPointerUp() { dragRef.current.dragging = false }
 
+  function toggleTag(i: number) {
+    setTags(prev => prev.map((t, idx) => idx === i ? { ...t, on: !t.on } : t))
+  }
+
   function download() {
     setDownloading(true)
     const canvas = canvasRef.current
@@ -164,7 +246,6 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.sheet}>
-        {/* Header */}
         <div className={styles.header}>
           <span className={styles.headerTitle}>Share Card</span>
           <button onClick={onClose} className={styles.closeBtn}>×</button>
@@ -179,7 +260,24 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
           onPointerUp={onPointerUp}
         >
           <canvas ref={canvasRef} className={styles.canvas} />
-          <div className={styles.dragHint}>Drag to reposition photo</div>
+          <div className={styles.dragHint}>Drag to reposition</div>
+        </div>
+
+        {/* Zoom slider */}
+        <div className={styles.section}>
+          <div className={styles.zoomRow}>
+            <span className={styles.zoomLabel}>Zoom</span>
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.05"
+              value={zoom}
+              onChange={e => setZoom(parseFloat(e.target.value))}
+              className={styles.zoomSlider}
+            />
+            <span className={styles.zoomVal}>{Math.round(zoom * 100)}%</span>
+          </div>
         </div>
 
         {/* Platform pills */}
@@ -192,6 +290,22 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
                 onClick={() => setPlatform(p)}
               >
                 {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tag toggles */}
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>Tags — tap to toggle</div>
+          <div className={styles.pills}>
+            {tags.map((tag, i) => (
+              <button
+                key={i}
+                className={`${styles.pill} ${tag.on ? styles.pillActive : ''}`}
+                onClick={() => toggleTag(i)}
+              >
+                {tag.label}
               </button>
             ))}
           </div>
