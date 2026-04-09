@@ -135,8 +135,9 @@ export function useIdentify() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64, mimeType, netHoleSize }),
       })
-      if (!resp.ok) throw new Error(`Identify failed: ${resp.status}`)
-      return await resp.json()
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.detail || data.error || `Identify failed: ${resp.status}`)
+      return data
     } finally {
       setLoading(false)
     }
