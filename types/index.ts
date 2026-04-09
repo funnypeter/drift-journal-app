@@ -19,6 +19,7 @@ export interface Trip {
   lng?: number
   flow?: string
   water_temp?: string
+  gauge_height?: string
   air_temp?: string
   baro?: string
   weather?: string

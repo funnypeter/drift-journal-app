@@ -51,9 +51,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     name: trip.location || '', lat: trip.lat || 0, lng: trip.lng || 0, state: trip.state || ''
   })
   const [conditions, setConditions] = useState({
-    flow: trip.flow || '', water_temp: trip.water_temp || '', air_temp: trip.air_temp || '',
-    baro: trip.baro || '', weather: trip.weather || '', wind: trip.wind || '',
-    moon: trip.moon || '', usgs_site_id: trip.usgs_site_id || ''
+    flow: trip.flow || '', water_temp: trip.water_temp || '', gauge_height: trip.gauge_height || '',
+    air_temp: trip.air_temp || '', baro: trip.baro || '', weather: trip.weather || '',
+    wind: trip.wind || '', moon: trip.moon || '', usgs_site_id: trip.usgs_site_id || ''
   })
   const [catches, setCatches] = useState<CatchDraft[]>(
     (trip.catches || []).map(c => ({

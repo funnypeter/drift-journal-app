@@ -35,7 +35,7 @@ export default function NewTripForm() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
   const [conditions, setConditions] = useState({
-    flow: '', water_temp: '', air_temp: '', baro: '', weather: '', wind: '', moon: '', usgs_site_id: ''
+    flow: '', water_temp: '', gauge_height: '', air_temp: '', baro: '', weather: '', wind: '', moon: '', usgs_site_id: ''
   })
 
   // Catches
@@ -58,6 +58,7 @@ export default function NewTripForm() {
           ...prev,
           flow: data.flow || prev.flow,
           water_temp: data.waterTemp || prev.water_temp,
+          gauge_height: data.gaugeHeight || prev.gauge_height,
           usgs_site_id: data.siteId || prev.usgs_site_id,
         }))
       }

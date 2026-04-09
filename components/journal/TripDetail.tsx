@@ -89,6 +89,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       <div className={styles.condGrid}>
         <Cond label="Water Flow" value={trip.flow ? `${trip.flow} cfs` : 'N/A'} />
         <Cond label="Water Temp" value={trip.water_temp ? `${trip.water_temp}°F` : 'N/A'} />
+        <Cond label="Gauge Ht" value={trip.gauge_height ? `${trip.gauge_height} ft` : 'N/A'} />
         <Cond label="Barometric" value={trip.baro ? `${trip.baro} inHg` : 'N/A'} />
         <Cond label="Air Temp" value={trip.air_temp || 'N/A'} />
         <Cond label="Weather" value={trip.weather || 'N/A'} />

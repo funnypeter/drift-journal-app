@@ -6,6 +6,7 @@ import styles from './ConditionsPanel.module.css'
 interface Conditions {
   flow: string
   water_temp: string
+  gauge_height: string
   air_temp: string
   baro: string
   weather: string
@@ -49,6 +50,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
           ...conditions,
           flow: usgsData.flow || conditions.flow,
           water_temp: usgsData.waterTemp || conditions.water_temp,
+          gauge_height: usgsData.gaugeHeight || conditions.gauge_height,
           usgs_site_id: usgsData.siteId || conditions.usgs_site_id,
         })
       }
@@ -60,6 +62,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
           ...conditions,
           flow: usgsData.flow || conditions.flow,
           water_temp: usgsData.waterTemp || conditions.water_temp,
+          gauge_height: usgsData.gaugeHeight || conditions.gauge_height,
           usgs_site_id: usgsData.siteId || conditions.usgs_site_id,
           air_temp: wxData.airTemp || conditions.air_temp,
           weather: wxData.weather || conditions.weather,
@@ -81,7 +84,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
       const data = await resp.json()
       if (data.error) { setUsgsStatus(data.error) }
       else {
-        onChange({ ...conditions, flow: data.flow || conditions.flow, water_temp: data.waterTemp || conditions.water_temp, usgs_site_id: data.siteId || conditions.usgs_site_id })
+        onChange({ ...conditions, flow: data.flow || conditions.flow, water_temp: data.waterTemp || conditions.water_temp, gauge_height: data.gaugeHeight || conditions.gauge_height, usgs_site_id: data.siteId || conditions.usgs_site_id })
         setUsgsStatus(`Gauge ${data.siteId} loaded`)
       }
     } catch { setUsgsStatus('Fetch failed') }
@@ -125,8 +128,8 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
         </div>
         <div className={styles.dataCell}>
           <div className={styles.dataCellLabel}>Gauge Ht</div>
-          <div className={styles.dataCellValue}>—</div>
-          <div className={styles.dataCellSub}>feet</div>
+          <div className={styles.dataCellValue}>{conditions.gauge_height ? `${conditions.gauge_height} ft` : 'N/A'}</div>
+          {conditions.gauge_height && <div className={styles.dataCellSub}>saved</div>}
         </div>
       </div>
 
