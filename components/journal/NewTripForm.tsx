@@ -6,6 +6,8 @@ import dynamic from 'next/dynamic'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
+import BatchPhotoImport from './BatchPhotoImport'
+import { compressForUpload } from '@/lib/imageUtils'
 import type { Catch } from '@/types'
 import styles from './NewTripForm.module.css'
 
@@ -27,7 +29,7 @@ export default function NewTripForm() {
   const router = useRouter()
 
   // Step 1: Location, Step 2: Log entry
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 'batch'>(1)
   const [location, setLocation] = useState<LocationData | null>(null)
 
   // Trip fields
@@ -189,6 +191,23 @@ export default function NewTripForm() {
     }
   }
 
+  if (step === 'batch') {
+    return (
+      <div className={styles.container}>
+        <div className={styles.topBar}>
+          <button onClick={() => setStep(1)} className={styles.backBtn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div className={styles.stepLabel}>Batch Import</div>
+        <h1 className={styles.stepTitle}>Import Photos</h1>
+        <BatchPhotoImport onCancel={() => setStep(1)} />
+      </div>
+    )
+  }
+
   if (step === 1) {
     return (
       <div className={styles.container}>
@@ -207,6 +226,20 @@ export default function NewTripForm() {
             setStep(2)
           }}
         />
+
+        <div className={styles.batchDivider}>
+          <span>or</span>
+        </div>
+
+        <button className={styles.batchBtn} onClick={() => setStep('batch')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Import multiple photos from camera roll
+        </button>
+        <p className={styles.batchSub}>I'll organize them into trips by date and identify each fish</p>
       </div>
     )
   }
@@ -328,28 +361,3 @@ function randomDark() {
   return colors[Math.floor(Math.random() * colors.length)]
 }
 
-function compressForUpload(file: File, maxDim: number, quality: number): Promise<File> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      let { width, height } = img
-      if (width <= maxDim && height <= maxDim && file.size < 3 * 1024 * 1024) {
-        resolve(file) // already small enough
-        return
-      }
-      if (width > maxDim || height > maxDim) {
-        const ratio = Math.min(maxDim / width, maxDim / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      canvas.toBlob(blob => {
-        resolve(new File([blob!], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
-      }, 'image/jpeg', quality)
-    }
-    img.src = URL.createObjectURL(file)
-  })
-}

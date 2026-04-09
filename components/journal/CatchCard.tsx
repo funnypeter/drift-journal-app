@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
+import { compressForIdentify } from '@/lib/imageUtils'
 import { FLY_DATA, FLY_SIZES, SPECIES } from '@/types'
 import styles from './CatchCard.module.css'
 
@@ -53,7 +54,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     if (!file) return
     const preview = URL.createObjectURL(file)
     onChange({ photoFile: file, photoPreview: preview })
-    const compressed = await compressImage(file, 1200, 0.7)
+    const compressed = await compressForIdentify(file, 1200, 0.7)
     runIdentify(compressed.base64, compressed.mimeType)
   }
 
@@ -62,7 +63,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     if (!src) return
     // If it's a local blob, re-compress from the file
     if (catch_.photoFile) {
-      const compressed = await compressImage(catch_.photoFile, 1200, 0.7)
+      const compressed = await compressForIdentify(catch_.photoFile, 1200, 0.7)
       return runIdentify(compressed.base64, compressed.mimeType)
     }
     // Otherwise fetch the existing photo URL and convert to base64
@@ -70,7 +71,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
       const resp = await fetch(src)
       const blob = await resp.blob()
       const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })
-      const compressed = await compressImage(file, 1200, 0.7)
+      const compressed = await compressForIdentify(file, 1200, 0.7)
       runIdentify(compressed.base64, compressed.mimeType)
     } catch {
       setAiResult('ID failed: could not load photo')
@@ -246,23 +247,3 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   )
 }
 
-function compressImage(file: File, maxDim: number, quality: number): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      let { width, height } = img
-      if (width > maxDim || height > maxDim) {
-        const ratio = Math.min(maxDim / width, maxDim / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
-      }
-      canvas.width = width
-      canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      const dataUrl = canvas.toDataURL('image/jpeg', quality)
-      resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' })
-    }
-    img.src = URL.createObjectURL(file)
-  })
-}

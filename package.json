@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.45.0",
     "@types/mapbox-gl": "^3.4.1",
+    "exifreader": "^4.38.1",
     "mapbox-gl": "^3.20.0",
     "next": "14.2.0",
     "react": "^18.3.0",
