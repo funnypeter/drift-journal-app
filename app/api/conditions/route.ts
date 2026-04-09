@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${gaugeId}&parameterCd=00060,00010,00065&siteStatus=active`
-      const resp = await fetch(url)
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
       if (!resp.ok) throw new Error(`USGS error ${resp.status}`)
       const data = await resp.json()
 
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
   if (type === 'weather' && lat && lng) {
     try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&pressure_msl=auto&forecast_days=1`
-      const resp = await fetch(url)
+      const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
       if (!resp.ok) throw new Error(`Weather error ${resp.status}`)
       const data = await resp.json()
       const c = data.current
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
 async function findNearestGauge(lat: number, lng: number): Promise<string | null> {
   try {
     const url = `https://waterservices.usgs.gov/nwis/site/?format=rdb&bBox=${(lng-0.5).toFixed(2)},${(lat-0.5).toFixed(2)},${(lng+0.5).toFixed(2)},${(lat+0.5).toFixed(2)}&parameterCd=00060&siteType=ST&siteStatus=active`
-    const resp = await fetch(url)
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
     if (!resp.ok) return null
     const text = await resp.text()
     const lines = text.split('\n').filter(l => /^\d/.test(l))
