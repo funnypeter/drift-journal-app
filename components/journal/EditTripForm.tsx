@@ -97,7 +97,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           }))
         }
       }).catch(() => {})
-  }, [location])
+  }, [location, date])
 
   function addCatch() {
     setCatches(prev => [...prev, {

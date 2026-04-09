@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const locationName = searchParams.get('location') || ''
   const lat = searchParams.get('lat')
   const lng = searchParams.get('lng')
-  const date = searchParams.get('date')
+  const date = searchParams.get('date')?.split('T')[0] || null
 
   if (type === 'usgs') {
     // Find gauge ID: lookup table → API search
