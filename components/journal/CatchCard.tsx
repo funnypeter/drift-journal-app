@@ -34,26 +34,47 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   const [flyCategory, setFlyCategory] = useState(catch_.fly_category || 'Dry Flies')
   const [aiResult, setAiResult] = useState('')
 
+  async function runIdentify(base64: string, mimeType: string) {
+    try {
+      const result = await identify(base64, mimeType, profile?.net_hole_size)
+      if (result.species) {
+        onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
+        setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
+      } else if (result.error) {
+        setAiResult(`ID failed: ${result.error}`)
+      }
+    } catch (err: any) {
+      setAiResult(`ID failed: ${err.message}`)
+    }
+  }
+
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     const preview = URL.createObjectURL(file)
     onChange({ photoFile: file, photoPreview: preview })
+    const compressed = await compressImage(file, 1200, 0.7)
+    runIdentify(compressed.base64, compressed.mimeType)
+  }
 
-    // Compress image then identify via Gemini
-    compressImage(file, 1200, 0.7).then(async (compressed) => {
-      try {
-        const result = await identify(compressed.base64, compressed.mimeType, profile?.net_hole_size)
-        if (result.species) {
-          onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
-          setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
-        } else if (result.error) {
-          setAiResult(`ID failed: ${result.error}`)
-        }
-      } catch (err: any) {
-        setAiResult(`ID failed: ${err.message}`)
-      }
-    })
+  async function reIdentify() {
+    const src = catch_.photoPreview
+    if (!src) return
+    // If it's a local blob, re-compress from the file
+    if (catch_.photoFile) {
+      const compressed = await compressImage(catch_.photoFile, 1200, 0.7)
+      return runIdentify(compressed.base64, compressed.mimeType)
+    }
+    // Otherwise fetch the existing photo URL and convert to base64
+    try {
+      const resp = await fetch(src)
+      const blob = await resp.blob()
+      const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })
+      const compressed = await compressImage(file, 1200, 0.7)
+      runIdentify(compressed.base64, compressed.mimeType)
+    } catch {
+      setAiResult('ID failed: could not load photo')
+    }
   }
 
   const flyOptions = FLY_DATA[flyCategory] || FLY_DATA['Dry Flies']
@@ -87,9 +108,14 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
                   ★ Hero
                 </button>
               )}
-              <button className={styles.replaceBtn} onClick={e => { e.stopPropagation(); fileRef.current?.click() }}>
-                Replace
-              </button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className={styles.replaceBtn} onClick={e => { e.stopPropagation(); reIdentify() }} disabled={identifying}>
+                  {identifying ? '...' : 'Re-ID'}
+                </button>
+                <button className={styles.replaceBtn} onClick={e => { e.stopPropagation(); fileRef.current?.click() }}>
+                  Replace
+                </button>
+              </div>
             </div>
             {identifying && (
               <div className={styles.identifying}>
