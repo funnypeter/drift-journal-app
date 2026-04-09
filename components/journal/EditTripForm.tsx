@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Trip, Catch } from '@/types'
 import CatchCard from './CatchCard'
@@ -66,6 +66,38 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
   const [heroIndex, setHeroIndex] = useState<number>(initialHero >= 0 ? initialHero : 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const initialLocation = useRef(location.name)
+
+  // Auto-fetch conditions when location changes
+  useEffect(() => {
+    if (!location.lat || location.name === initialLocation.current) return
+    initialLocation.current = location.name
+    const params = new URLSearchParams({
+      type: 'usgs', location: location.name,
+      lat: String(location.lat), lng: String(location.lng),
+    })
+    fetch(`/api/conditions?${params}`).then(r => r.json()).then(data => {
+      if (!data.error) {
+        setConditions(prev => ({
+          ...prev,
+          flow: data.flow || '', water_temp: data.waterTemp || '',
+          gauge_height: data.gaugeHeight || '', usgs_site_id: data.siteId || '',
+        }))
+      }
+    }).catch(() => {})
+    fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
+      .then(r => r.json()).then(data => {
+        if (!data.error) {
+          setConditions(prev => ({
+            ...prev,
+            air_temp: data.airTemp || prev.air_temp,
+            weather: data.weather || prev.weather,
+            baro: data.baro || prev.baro,
+            wind: data.wind || prev.wind,
+          }))
+        }
+      }).catch(() => {})
+  }, [location])
 
   function addCatch() {
     setCatches(prev => [...prev, {
