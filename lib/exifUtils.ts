@@ -20,32 +20,45 @@ export async function parseExif(file: File): Promise<PhotoWithExif> {
 
   try {
     const buf = await file.arrayBuffer()
-    const tags = ExifReader.load(buf)
+    const tags = ExifReader.load(buf, { expanded: true })
 
     // Parse date: EXIF format is "YYYY:MM:DD HH:MM:SS"
     let date = fallbackDate
     let time: string | null = null
-    const dto = tags.DateTimeOriginal?.description || tags.DateTime?.description
+    const exifTags = tags.exif || {}
+    const dto = exifTags.DateTimeOriginal?.description || exifTags.DateTime?.description
     if (dto) {
       const [datePart, timePart] = dto.split(' ')
       date = datePart.replace(/:/g, '-')
       if (timePart) time = timePart.slice(0, 5) // HH:MM
     }
 
-    // Parse GPS
+    // Parse GPS — expanded mode puts GPS in tags.gps
     let lat: number | null = null
     let lng: number | null = null
-    const gpsLat = tags.GPSLatitude?.description
-    const gpsLng = tags.GPSLongitude?.description
-    if (gpsLat != null && gpsLng != null) {
-      lat = parseFloat(String(gpsLat))
-      lng = parseFloat(String(gpsLng))
-      const latRef = String(tags.GPSLatitudeRef?.value ?? '')
-      const lngRef = String(tags.GPSLongitudeRef?.value ?? '')
-      if (latRef.startsWith('S')) lat = -lat
-      if (lngRef.startsWith('W')) lng = -lng
-      if (isNaN(lat) || isNaN(lng)) { lat = null; lng = null }
+    const gps = tags.gps
+    if (gps) {
+      // expanded mode provides Latitude/Longitude as signed decimals
+      if (gps.Latitude != null && gps.Longitude != null) {
+        lat = gps.Latitude
+        lng = gps.Longitude
+      }
     }
+    // Fallback: try non-expanded GPS tags
+    if (lat == null || lng == null) {
+      const flat = tags.exif || {}
+      const gpsLat = flat.GPSLatitude?.description
+      const gpsLng = flat.GPSLongitude?.description
+      if (gpsLat != null && gpsLng != null) {
+        lat = parseFloat(String(gpsLat))
+        lng = parseFloat(String(gpsLng))
+        const latRef = String(flat.GPSLatitudeRef?.value ?? '')
+        const lngRef = String(flat.GPSLongitudeRef?.value ?? '')
+        if (latRef.startsWith('S')) lat = -lat
+        if (lngRef.startsWith('W')) lng = -lng
+      }
+    }
+    if (lat != null && lng != null && (isNaN(lat) || isNaN(lng))) { lat = null; lng = null }
 
     return { file, date, time, lat, lng }
   } catch {

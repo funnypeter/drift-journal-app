@@ -103,6 +103,35 @@ export default function BatchPhotoImport({ onCancel }: Props) {
         : `Imported Trip - ${group.date}`
       setProcessProgress({ current: processed, total: totalPhotos, status: `Creating trip: ${tripTitle}` })
 
+      // Fetch conditions if we have location
+      let conditions: Record<string, string> = {}
+      if (group.lat != null && group.lng != null) {
+        try {
+          const usgsParams = new URLSearchParams({
+            type: 'usgs', lat: String(group.lat), lng: String(group.lng), date: group.date,
+            ...(location ? { location } : {}),
+          })
+          const usgsResp = await fetch(`/api/conditions?${usgsParams}`)
+          const usgsData = await usgsResp.json()
+          if (!usgsData.error) {
+            if (usgsData.flow) conditions.flow = usgsData.flow
+            if (usgsData.waterTemp) conditions.water_temp = usgsData.waterTemp
+            if (usgsData.gaugeHeight) conditions.gauge_height = usgsData.gaugeHeight
+            if (usgsData.siteId) conditions.usgs_site_id = usgsData.siteId
+          }
+        } catch {}
+        try {
+          const wxResp = await fetch(`/api/conditions?type=weather&lat=${group.lat}&lng=${group.lng}&date=${group.date}`)
+          const wxData = await wxResp.json()
+          if (!wxData.error) {
+            if (wxData.airTemp) conditions.air_temp = wxData.airTemp
+            if (wxData.weather) conditions.weather = wxData.weather
+            if (wxData.baro) conditions.baro = wxData.baro
+            if (wxData.wind) conditions.wind = wxData.wind
+          }
+        } catch {}
+      }
+
       let tripId: string
       try {
         const tripResp = await fetch('/api/trips', {
@@ -113,6 +142,7 @@ export default function BatchPhotoImport({ onCancel }: Props) {
             date: group.date,
             location, state,
             lat: group.lat, lng: group.lng,
+            ...conditions,
             bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
           }),
         })
