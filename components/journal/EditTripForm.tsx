@@ -74,7 +74,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     initialLocation.current = location.name
     const params = new URLSearchParams({
       type: 'usgs', location: location.name,
-      lat: String(location.lat), lng: String(location.lng),
+      lat: String(location.lat), lng: String(location.lng), date,
     })
     fetch(`/api/conditions?${params}`).then(r => r.json()).then(data => {
       if (!data.error) {
@@ -85,7 +85,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         }))
       }
     }).catch(() => {})
-    fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
+    fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}&date=${date}`)
       .then(r => r.json()).then(data => {
         if (!data.error) {
           setConditions(prev => ({

@@ -41,7 +41,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
     setLoadingRefresh(true)
     try {
       // Fetch USGS
-      const usgsParams = new URLSearchParams({ type: 'usgs', location: location.name, lat: String(location.lat), lng: String(location.lng) })
+      const usgsParams = new URLSearchParams({ type: 'usgs', location: location.name, lat: String(location.lat), lng: String(location.lng), date })
       if (conditions.usgs_site_id) usgsParams.set('siteId', conditions.usgs_site_id)
       const usgsResp = await fetch(`/api/conditions?${usgsParams}`)
       const usgsData = await usgsResp.json()
@@ -55,7 +55,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
         })
       }
       // Fetch weather
-      const wxResp = await fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}`)
+      const wxResp = await fetch(`/api/conditions?type=weather&lat=${location.lat}&lng=${location.lng}&date=${date}`)
       const wxData = await wxResp.json()
       if (!wxData.error) {
         onChange({
@@ -80,7 +80,7 @@ export default function ConditionsPanel({ location, date, conditions, onChange }
     setLoadingRefresh(true)
     setUsgsStatus('Fetching...')
     try {
-      const resp = await fetch(`/api/conditions?type=usgs&siteId=${conditions.usgs_site_id}`)
+      const resp = await fetch(`/api/conditions?type=usgs&siteId=${conditions.usgs_site_id}&date=${date}`)
       const data = await resp.json()
       if (data.error) { setUsgsStatus(data.error) }
       else {

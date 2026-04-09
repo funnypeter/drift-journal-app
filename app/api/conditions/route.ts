@@ -51,20 +51,40 @@ export async function GET(req: NextRequest) {
     if (!gaugeId) return NextResponse.json({ error: 'No gauge found' }, { status: 404 })
 
     try {
-      const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${gaugeId}&parameterCd=00060,00010,00065&siteStatus=active`
-      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
-      if (!resp.ok) throw new Error(`USGS error ${resp.status}`)
-      const data = await resp.json()
-
-      const series = data.value?.timeSeries || []
       const result: Record<string, string> = { siteId: gaugeId }
-      for (const s of series) {
-        const code = s.variable?.variableCode?.[0]?.value
-        const val = s.values?.[0]?.value?.[0]?.value
-        if (!val || val === '-999999') continue
-        if (code === '00060') result.flow = parseFloat(val).toFixed(0)
-        if (code === '00010') result.waterTemp = (parseFloat(val) * 9/5 + 32).toFixed(1)
-        if (code === '00065') result.gaugeHeight = parseFloat(val).toFixed(2)
+      const today = new Date().toISOString().split('T')[0]
+      const isHistorical = date && date < today
+
+      if (isHistorical) {
+        // Use daily values for past dates
+        const url = `https://waterservices.usgs.gov/nwis/dv/?format=json&sites=${gaugeId}&parameterCd=00060,00010,00065&startDT=${date}&endDT=${date}`
+        const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
+        if (!resp.ok) throw new Error(`USGS error ${resp.status}`)
+        const data = await resp.json()
+        const series = data.value?.timeSeries || []
+        for (const s of series) {
+          const code = s.variable?.variableCode?.[0]?.value
+          const val = s.values?.[0]?.value?.[0]?.value
+          if (!val || val === '-999999') continue
+          if (code === '00060') result.flow = parseFloat(val).toFixed(0)
+          if (code === '00010') result.waterTemp = (parseFloat(val) * 9/5 + 32).toFixed(1)
+          if (code === '00065') result.gaugeHeight = parseFloat(val).toFixed(2)
+        }
+      } else {
+        // Use instantaneous values for today/future
+        const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${gaugeId}&parameterCd=00060,00010,00065&siteStatus=active`
+        const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
+        if (!resp.ok) throw new Error(`USGS error ${resp.status}`)
+        const data = await resp.json()
+        const series = data.value?.timeSeries || []
+        for (const s of series) {
+          const code = s.variable?.variableCode?.[0]?.value
+          const val = s.values?.[0]?.value?.[0]?.value
+          if (!val || val === '-999999') continue
+          if (code === '00060') result.flow = parseFloat(val).toFixed(0)
+          if (code === '00010') result.waterTemp = (parseFloat(val) * 9/5 + 32).toFixed(1)
+          if (code === '00065') result.gaugeHeight = parseFloat(val).toFixed(2)
+        }
       }
       return NextResponse.json(result)
     } catch (e: any) {
@@ -73,37 +93,55 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === 'weather' && lat && lng) {
+    const wmoDesc = (code: number) => {
+      if (code === 0) return 'Clear'
+      if (code <= 3) return 'Partly Cloudy'
+      if (code <= 9) return 'Overcast'
+      if (code <= 19) return 'Foggy'
+      if (code <= 29) return 'Drizzle'
+      if (code <= 39) return 'Rain'
+      if (code <= 49) return 'Snow'
+      if (code <= 59) return `Rain / ${(code * 0.01).toFixed(2)}" precip`
+      if (code <= 69) return 'Snow'
+      if (code <= 79) return 'Sleet'
+      if (code <= 89) return 'Rain showers'
+      return 'Thunderstorm'
+    }
+    const windDirs = ['N','NE','E','SE','S','SW','W','NW']
+
+    const today = new Date().toISOString().split('T')[0]
+    const isHistorical = date && date < today
+
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&pressure_msl=auto&forecast_days=1`
-      const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
-      if (!resp.ok) throw new Error(`Weather error ${resp.status}`)
-      const data = await resp.json()
-      const c = data.current
-
-      const wmoDesc = (code: number) => {
-        if (code === 0) return 'Clear'
-        if (code <= 3) return 'Partly Cloudy'
-        if (code <= 9) return 'Overcast'
-        if (code <= 19) return 'Foggy'
-        if (code <= 29) return 'Drizzle'
-        if (code <= 39) return 'Rain'
-        if (code <= 49) return 'Snow'
-        if (code <= 59) return `Rain / ${(code * 0.01).toFixed(2)}" precip`
-        if (code <= 69) return 'Snow'
-        if (code <= 79) return 'Sleet'
-        if (code <= 89) return 'Rain showers'
-        return 'Thunderstorm'
+      if (isHistorical) {
+        // Use Open-Meteo historical archive for past dates
+        const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${date}&end_date=${date}&daily=temperature_2m_mean,weather_code,surface_pressure_mean,wind_speed_10m_max,wind_direction_10m_dominant&temperature_unit=fahrenheit&wind_speed_unit=mph`
+        const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
+        if (!resp.ok) throw new Error(`Weather error ${resp.status}`)
+        const data = await resp.json()
+        const d = data.daily
+        if (!d?.time?.length) throw new Error('No historical weather data')
+        const windDir = windDirs[Math.round((d.wind_direction_10m_dominant?.[0] || 0) / 45) % 8]
+        return NextResponse.json({
+          airTemp: Math.round(d.temperature_2m_mean[0]) + '°F',
+          weather: wmoDesc(d.weather_code[0]),
+          baro: d.surface_pressure_mean?.[0] ? (d.surface_pressure_mean[0] * 0.02953).toFixed(2) : undefined,
+          wind: Math.round(d.wind_speed_10m_max[0]) + ' mph ' + windDir,
+        })
+      } else {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&pressure_msl=auto&forecast_days=1`
+        const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
+        if (!resp.ok) throw new Error(`Weather error ${resp.status}`)
+        const data = await resp.json()
+        const c = data.current
+        const windDir = windDirs[Math.round(c.wind_direction_10m / 45) % 8]
+        return NextResponse.json({
+          airTemp: Math.round(c.temperature_2m) + '°F',
+          weather: wmoDesc(c.weather_code),
+          baro: (c.surface_pressure * 0.02953).toFixed(2),
+          wind: Math.round(c.wind_speed_10m) + ' mph ' + windDir,
+        })
       }
-
-      const windDirs = ['N','NE','E','SE','S','SW','W','NW']
-      const windDir = windDirs[Math.round(c.wind_direction_10m / 45) % 8]
-
-      return NextResponse.json({
-        airTemp: Math.round(c.temperature_2m) + '°F',
-        weather: wmoDesc(c.weather_code),
-        baro: (c.surface_pressure * 0.02953).toFixed(2),
-        wind: Math.round(c.wind_speed_10m) + ' mph ' + windDir,
-      })
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 502 })
     }
