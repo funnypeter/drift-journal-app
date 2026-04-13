@@ -87,10 +87,60 @@ export const PLATFORMS: Platform[] = [
   { label: 'Story', w: 1080, h: 1920 },
 ]
 
-export const SPECIES = [
-  'Rainbow Trout', 'Brown Trout', 'Cutthroat Trout', 'Brook Trout',
-  'Bull Trout', 'Steelhead', 'Mountain Whitefish', 'Arctic Grayling',
-]
+export const SPECIES_BY_CATEGORY: Record<string, string[]> = {
+  'Trout & Char': [
+    'Rainbow Trout', 'Brown Trout', 'Cutthroat Trout', 'Brook Trout',
+    'Bull Trout', 'Lake Trout', 'Golden Trout', 'Tiger Trout',
+    'Splake', 'Apache Trout', 'Gila Trout',
+  ],
+  'Salmon': [
+    'Chinook Salmon', 'Coho Salmon', 'Sockeye Salmon', 'Pink Salmon',
+    'Chum Salmon', 'Atlantic Salmon', 'Kokanee',
+  ],
+  'Steelhead & Anadromous': [
+    'Steelhead',
+  ],
+  'Grayling & Whitefish': [
+    'Arctic Grayling', 'Mountain Whitefish', 'Lake Whitefish',
+  ],
+  'Bass': [
+    'Largemouth Bass', 'Smallmouth Bass', 'Spotted Bass', 'Striped Bass',
+    'White Bass', 'Hybrid Striped Bass', 'Guadalupe Bass', 'Peacock Bass',
+  ],
+  'Panfish': [
+    'Bluegill', 'Pumpkinseed', 'Redear Sunfish', 'Green Sunfish',
+    'Rock Bass', 'Warmouth', 'Black Crappie', 'White Crappie',
+    'Yellow Perch',
+  ],
+  'Walleye & Pike': [
+    'Walleye', 'Sauger', 'Saugeye', 'Northern Pike', 'Muskellunge',
+    'Tiger Muskie', 'Chain Pickerel',
+  ],
+  'Catfish': [
+    'Channel Catfish', 'Blue Catfish', 'Flathead Catfish', 'Bullhead',
+  ],
+  'Carp & Rough Fish': [
+    'Common Carp', 'Grass Carp', 'Freshwater Drum', 'Gar',
+    'Bowfin', 'Buffalo',
+  ],
+  'Saltwater Inshore': [
+    'Redfish', 'Snook', 'Spotted Seatrout', 'Flounder', 'Sheepshead',
+    'Tarpon', 'Bonefish', 'Permit', 'Jack Crevalle', 'Pompano',
+    'Red Drum', 'Black Drum', 'Mangrove Snapper',
+  ],
+  'Saltwater Offshore': [
+    'Mahi-Mahi', 'Yellowfin Tuna', 'Bluefin Tuna', 'Wahoo',
+    'King Mackerel', 'Spanish Mackerel', 'Cobia', 'Amberjack',
+    'Grouper', 'Red Snapper', 'Sailfish', 'Blue Marlin', 'White Marlin',
+    'Swordfish', 'Barracuda', 'Tripletail',
+  ],
+  'Saltwater Other': [
+    'Halibut', 'Lingcod', 'Rockfish', 'Bluefish', 'Weakfish',
+    'Tautog', 'Black Sea Bass', 'Summer Flounder', 'Winter Flounder',
+  ],
+}
+
+export const SPECIES: string[] = Object.values(SPECIES_BY_CATEGORY).flat()
 
 export const FLY_DATA: Record<string, string[]> = {
   'Dry Flies': ['Parachute Adams', 'Elk Hair Caddis', 'Royal Wulff', 'Blue Wing Olive', 'Stimulator', 'Pale Morning Dun', "Griffith's Gnat", 'CDC Caddis'],

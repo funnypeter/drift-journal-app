@@ -13,9 +13,11 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'AI not configured' }, { status: 503 })
 
+  const speciesHint = 'Common game fish include trout (Rainbow, Brown, Cutthroat, Brook, Bull, Lake, Golden), salmon (Chinook, Coho, Sockeye), Steelhead, Arctic Grayling, bass (Largemouth, Smallmouth, Spotted, Striped), walleye, northern pike, muskellunge, panfish (Bluegill, Crappie, Yellow Perch), catfish, carp, and saltwater species (Redfish, Snook, Tarpon, Bonefish, Mahi-Mahi, Tuna, Grouper, Snapper, Halibut, Rockfish, etc.) — but identify whatever species you see.'
+
   const prompt = netHoleSize
-    ? `Determine the fish species and estimate the size of the fish in inches. The net holes are ${netHoleSize} inches in diameter — use this as a reference for your size estimate. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Common species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling — but identify whatever species you see.`
-    : `Determine the fish species and estimate the size of the fish in inches when possible. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Common species: Rainbow Trout, Brown Trout, Cutthroat Trout, Brook Trout, Bull Trout, Steelhead, Mountain Whitefish, Arctic Grayling — but identify whatever species you see.`
+    ? `Determine the fish species and estimate the size of the fish in inches. The net holes are ${netHoleSize} inches in diameter — use this as a reference for your size estimate. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. ${speciesHint}`
+    : `Determine the fish species and estimate the size of the fish in inches when possible. Output ONLY valid JSON: {"species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. ${speciesHint}`
 
   try {
     const response = await fetch(

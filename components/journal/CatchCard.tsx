@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
 import { compressForIdentify } from '@/lib/imageUtils'
-import { FLY_DATA, FLY_SIZES, SPECIES } from '@/types'
+import { FLY_DATA, FLY_SIZES } from '@/types'
+import SpeciesSelect from './SpeciesSelect'
 import styles from './CatchCard.module.css'
 
 interface CatchDraft {
@@ -147,20 +148,16 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
         </div>
       )}
 
-      <div className={styles.fields}>
-        {/* Species */}
-        <div className={styles.field}>
-          <label className={styles.label}>Species</label>
-          <select
-            className={styles.select}
-            value={catch_.species}
-            onChange={e => onChange({ species: e.target.value })}
-          >
-            <option value="Unknown">Unknown</option>
-            {SPECIES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
+      {/* Species - full width above grid */}
+      <div className={styles.speciesField}>
+        <label className={styles.label}>Species</label>
+        <SpeciesSelect
+          value={catch_.species}
+          onChange={species => onChange({ species })}
+        />
+      </div>
 
+      <div className={styles.fields}>
         {/* Length */}
         <div className={styles.field}>
           <label className={styles.label}>Length (in)</label>

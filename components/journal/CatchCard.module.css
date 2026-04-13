@@ -149,10 +149,18 @@
   border-bottom: 1px solid rgba(30,77,67,0.1);
 }
 
+/* Species */
+.speciesField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 0;
+}
+
 /* Fields */
 .fields {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   padding: 14px;
 }
