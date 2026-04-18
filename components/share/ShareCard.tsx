@@ -76,15 +76,6 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       ctx.drawImage(img, ox, oy, sw, sh)
     }
 
-    // Bottom gradient
-    const botH = H * 0.38
-    const botGrad = ctx.createLinearGradient(0, H - botH, 0, H)
-    botGrad.addColorStop(0, 'rgba(0,0,0,0)')
-    botGrad.addColorStop(0.5, 'rgba(0,0,0,0.45)')
-    botGrad.addColorStop(1, 'rgba(0,0,0,0.78)')
-    ctx.fillStyle = botGrad
-    ctx.fillRect(0, H - botH, W, botH)
-
     // Active tags as pills at bottom
     const activeTags = tags.filter(t => t.on)
     const tagFontSize = Math.round(W * 0.024)
@@ -110,10 +101,6 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
 
     // Species name
     const speciesSize = Math.round(W * 0.058)
-    ctx.font = `italic 700 ${speciesSize}px "Playfair Display", Georgia, serif`
-    ctx.fillStyle = 'white'
-    ctx.shadowColor = 'rgba(0,0,0,0.5)'
-    ctx.shadowBlur = 10
 
     const totalTagH = rows.length > 0 ? rows.length * tagLineH + tagGap : 0
     const countSize = Math.round(W * 0.02)
@@ -134,8 +121,22 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     ctx.save()
     ctx.translate(tagOffset.x, tagOffset.y)
 
+    // Heavier drop shadow keeps the text readable over any photo now that
+    // the full-width bottom gradient is gone.
+    const enableTextShadow = () => {
+      ctx.shadowColor = 'rgba(0,0,0,0.75)'
+      ctx.shadowBlur = 14
+      ctx.shadowOffsetY = 1
+    }
+    const disableShadow = () => {
+      ctx.shadowBlur = 0
+      ctx.shadowOffsetY = 0
+    }
+
+    enableTextShadow()
+    ctx.font = `italic 700 ${speciesSize}px "Playfair Display", Georgia, serif`
+    ctx.fillStyle = 'white'
     ctx.fillText(catch_.species || 'Unknown', PAD, speciesY)
-    ctx.shadowBlur = 0
 
     // Stats row
     const labelSize = Math.round(W * 0.02)
@@ -150,7 +151,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
 
     stats.forEach(s => {
       ctx.font = `700 ${labelSize}px "Inter", system-ui, sans-serif`
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'
+      ctx.fillStyle = 'rgba(255,255,255,0.75)'
       ctx.fillText(s.label, sx, statsY)
       ctx.font = `700 ${valSize}px "Inter", system-ui, sans-serif`
       ctx.fillStyle = 'white'
@@ -158,20 +159,32 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       sx += ctx.measureText(s.value).width + W * 0.04
     })
 
-    // Tag pills
+    // Tag pills — draw backgrounds without shadow, then text with shadow.
     if (activeTags.length > 0) {
       const pillStartY = statsY + valSize * 1.2 + tagGap * 2
-      let rowY = pillStartY
       ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
+
+      disableShadow()
+      let rowY = pillStartY
       rows.forEach(row => {
         let tx = PAD
         row.forEach(tag => {
           roundRect(ctx, tx, rowY, tag.w, tagH, tagH / 2)
-          ctx.fillStyle = 'rgba(255,255,255,0.15)'
+          ctx.fillStyle = 'rgba(0,0,0,0.45)'
           ctx.fill()
-          ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+          ctx.strokeStyle = 'rgba(255,255,255,0.55)'
           ctx.lineWidth = 1
           ctx.stroke()
+          tx += tag.w + tagGap
+        })
+        rowY += tagLineH
+      })
+
+      enableTextShadow()
+      rowY = pillStartY
+      rows.forEach(row => {
+        let tx = PAD
+        row.forEach(tag => {
           ctx.fillStyle = 'white'
           ctx.fillText(tag.label, tx + tagPadX, rowY + tagFontSize + tagPadY * 0.55)
           tx += tag.w + tagGap
@@ -182,8 +195,10 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
 
     // Catch count
     ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
-    ctx.fillStyle = 'rgba(255,255,255,0.4)'
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'
     ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, H - PAD * 0.7)
+
+    disableShadow()
 
     // End tag-block translate
     ctx.restore()
