@@ -41,7 +41,11 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
   const [imgOffset, setImgOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [tags, setTags] = useState<Tag[]>(() => buildTags(trip, catch_))
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 })
+  const [tagOffset, setTagOffset] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{ mode: 'image' | 'tags' | null; startX: number; startY: number; origX: number; origY: number }>({
+    mode: null, startX: 0, startY: 0, origX: 0, origY: 0,
+  })
+  const tagBoundsRef = useRef({ x: 0, y: 0, w: 0, h: 0 }) // in canvas pixel coords
   const imgRef = useRef<HTMLImageElement | null>(null)
   const catches = trip.catches || []
   const catchIndex = catches.findIndex(c => c.id === catch_.id)
@@ -115,6 +119,21 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     const countSize = Math.round(W * 0.02)
     const statsH = W * 0.035 * 2.5
     const speciesY = H - PAD - countSize * 2 - totalTagH - statsH - speciesSize * 0.2
+
+    // Record tag-block bounds in canvas coords (for drag hit-testing).
+    const blockTop = speciesY - speciesSize
+    const blockBottom = H - PAD * 0.3
+    tagBoundsRef.current = {
+      x: PAD + tagOffset.x,
+      y: blockTop + tagOffset.y,
+      w: W - PAD * 2,
+      h: blockBottom - blockTop,
+    }
+
+    // Translate the entire tag block by tagOffset so the user can drag it.
+    ctx.save()
+    ctx.translate(tagOffset.x, tagOffset.y)
+
     ctx.fillText(catch_.species || 'Unknown', PAD, speciesY)
     ctx.shadowBlur = 0
 
@@ -166,6 +185,9 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     ctx.fillStyle = 'rgba(255,255,255,0.4)'
     ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, H - PAD * 0.7)
 
+    // End tag-block translate
+    ctx.restore()
+
     // Logo watermark — top right
     const wmSize = Math.round(W * 0.025)
     ctx.font = `italic 700 ${wmSize}px "Playfair Display", Georgia, serif`
@@ -195,7 +217,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       }
       logoImg.src = '/icon-192.png'
     }
-  }, [platform, imgOffset, zoom, tags, catch_, catches.length, catchIndex])
+  }, [platform, imgOffset, tagOffset, zoom, tags, catch_, catches.length, catchIndex])
 
   // Load image
   useEffect(() => {
@@ -209,18 +231,44 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
 
   useEffect(() => { draw() }, [draw])
 
-  // Drag handlers
+  // Drag handlers — hit-test to decide whether the user is grabbing the
+  // tag/info block or the background image.
   function onPointerDown(e: React.PointerEvent) {
-    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: imgOffset.x, origY: imgOffset.y }
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const cx = (e.clientX - rect.left) * scaleX
+    const cy = (e.clientY - rect.top) * scaleY
+    const b = tagBoundsRef.current
+    const inTags = cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h
+    const mode: 'image' | 'tags' = inTags ? 'tags' : 'image'
+    const origX = inTags ? tagOffset.x : imgOffset.x
+    const origY = inTags ? tagOffset.y : imgOffset.y
+    dragRef.current = { mode, startX: e.clientX, startY: e.clientY, origX, origY }
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }
   function onPointerMove(e: React.PointerEvent) {
-    if (!dragRef.current.dragging) return
-    const dx = e.clientX - dragRef.current.startX
-    const dy = e.clientY - dragRef.current.startY
-    setImgOffset({ x: dragRef.current.origX + dx, y: dragRef.current.origY + dy })
+    if (!dragRef.current.mode) return
+    const dxScreen = e.clientX - dragRef.current.startX
+    const dyScreen = e.clientY - dragRef.current.startY
+    if (dragRef.current.mode === 'tags') {
+      // Convert screen delta → canvas pixels so tag drag tracks the cursor 1:1.
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      setTagOffset({
+        x: dragRef.current.origX + dxScreen * scaleX,
+        y: dragRef.current.origY + dyScreen * scaleY,
+      })
+    } else {
+      setImgOffset({ x: dragRef.current.origX + dxScreen, y: dragRef.current.origY + dyScreen })
+    }
   }
-  function onPointerUp() { dragRef.current.dragging = false }
+  function onPointerUp() { dragRef.current.mode = null }
 
   function toggleTag(i: number) {
     setTags(prev => prev.map((t, idx) => idx === i ? { ...t, on: !t.on } : t))
@@ -260,7 +308,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
           onPointerUp={onPointerUp}
         >
           <canvas ref={canvasRef} className={styles.canvas} />
-          <div className={styles.dragHint}>Drag to reposition</div>
+          <div className={styles.dragHint}>Drag image or tags to reposition</div>
         </div>
 
         {/* Zoom slider */}
