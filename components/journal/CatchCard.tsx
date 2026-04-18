@@ -55,27 +55,32 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     if (!file) return
     const preview = URL.createObjectURL(file)
     onChange({ photoFile: file, photoPreview: preview })
-    const compressed = await compressForIdentify(file, 1200, 0.7)
-    runIdentify(compressed.base64, compressed.mimeType)
+    try {
+      const compressed = await compressForIdentify(file, 1200, 0.7)
+      runIdentify(compressed.base64, compressed.mimeType)
+    } catch (err: any) {
+      setAiResult(`Photo error: ${err.message}`)
+      onChange({ photoFile: undefined, photoPreview: undefined })
+    }
   }
 
   async function reIdentify() {
     const src = catch_.photoPreview
     if (!src) return
-    // If it's a local blob, re-compress from the file
-    if (catch_.photoFile) {
-      const compressed = await compressForIdentify(catch_.photoFile, 1200, 0.7)
-      return runIdentify(compressed.base64, compressed.mimeType)
-    }
-    // Otherwise fetch the existing photo URL and convert to base64
     try {
+      // If it's a local blob, re-compress from the file
+      if (catch_.photoFile) {
+        const compressed = await compressForIdentify(catch_.photoFile, 1200, 0.7)
+        return runIdentify(compressed.base64, compressed.mimeType)
+      }
+      // Otherwise fetch the existing photo URL and convert to base64
       const resp = await fetch(src)
       const blob = await resp.blob()
       const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })
       const compressed = await compressForIdentify(file, 1200, 0.7)
       runIdentify(compressed.base64, compressed.mimeType)
-    } catch {
-      setAiResult('ID failed: could not load photo')
+    } catch (err: any) {
+      setAiResult(`ID failed: ${err.message || 'could not load photo'}`)
     }
   }
 
