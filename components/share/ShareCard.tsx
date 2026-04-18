@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Trip, Catch, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
+import { realCatches, isNoFish } from '@/lib/catchUtils'
 import styles from './ShareCard.module.css'
 
 // Tier 1 = large italic title line (usually location)
@@ -59,8 +60,11 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
   })
   const tagBoundsRef = useRef({ x: 0, y: 0, w: 0, h: 0 }) // in canvas pixel coords
   const imgRef = useRef<HTMLImageElement | null>(null)
-  const catches = trip.catches || []
-  const catchIndex = catches.findIndex(c => c.id === catch_.id)
+  // Only real catches contribute to the count — "No Fish" entries are trip
+  // logs with nothing caught and shouldn't appear in "X of Y catches".
+  const countedCatches = realCatches(trip.catches || [])
+  const catchIndex = countedCatches.findIndex(c => c.id === catch_.id)
+  const showCount = !isNoFish(catch_) && catchIndex >= 0 && countedCatches.length > 0
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -124,7 +128,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
     // Compute stacked block height (only lines that are on contribute).
     const tier1H = tier1 ? tier1Size * 1.15 : 0
     const tier2H = tier2.length > 0 ? tier2Size * 1.35 : 0
-    const countH = countSize * 2
+    const countH = showCount ? countSize * 2 : 0
     const gapsH = [tier1H, tier2H, pillsH, countH].filter(h => h > 0).length > 1
       ? ([tier1H, tier2H, pillsH, countH].filter(h => h > 0).length - 1) * lineGap
       : 0
@@ -208,11 +212,13 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       y += pillsH + lineGap
     }
 
-    // Catch count — always shown
-    enableTextShadow()
-    ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
-    ctx.fillStyle = 'rgba(255,255,255,0.75)'
-    ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, y + countSize)
+    // Catch count — hidden for No Fish entries (not a real catch)
+    if (showCount) {
+      enableTextShadow()
+      ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
+      ctx.fillStyle = 'rgba(255,255,255,0.75)'
+      ctx.fillText(`${catchIndex + 1} of ${countedCatches.length} catches`, PAD, y + countSize)
+    }
 
     disableShadow()
 
@@ -248,7 +254,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       }
       logoImg.src = '/icon-192.png'
     }
-  }, [platform, imgOffset, tagOffset, zoom, tags, catch_, catches.length, catchIndex])
+  }, [platform, imgOffset, tagOffset, zoom, tags, catch_, countedCatches.length, catchIndex, showCount])
 
   // Load image
   useEffect(() => {

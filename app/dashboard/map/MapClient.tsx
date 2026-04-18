@@ -5,6 +5,7 @@ import Link from 'next/link'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Trip } from '@/types'
+import { realCatches } from '@/lib/catchUtils'
 import styles from './map.module.css'
 
 export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
@@ -36,7 +37,7 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
 
     // Add markers
     initialTrips.forEach(t => {
-      const catchCount = t.catches?.length || 0
+      const catchCount = realCatches(t.catches || []).length
       const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
       const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup', maxWidth: '260px' })
         .setHTML(`
@@ -114,7 +115,10 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
                 {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
               <div className={styles.cardCatches}>
-                {t.catches?.length || 0} catch{(t.catches?.length || 0) !== 1 ? 'es' : ''}
+                {(() => {
+                  const n = realCatches(t.catches || []).length
+                  return `${n} catch${n !== 1 ? 'es' : ''}`
+                })()}
               </div>
               <Link href={`/trips/${t.id}`} className={styles.cardLink} onClick={e => e.stopPropagation()}>
                 View &rarr;

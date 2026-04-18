@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
 import ShareCard from '@/components/share/ShareCard'
+import { realCatches, isNoFish } from '@/lib/catchUtils'
 import styles from './TripDetail.module.css'
 
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
@@ -108,7 +109,7 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         <div className={styles.catches}>
           <div className={styles.catchHeader}>
             <h2 className={styles.catchTitle}>Catch Gallery</h2>
-            <span className={styles.catchCount}>({catches.length} total)</span>
+            <span className={styles.catchCount}>({realCatches(catches).length} total)</span>
           </div>
           <div className={styles.catchGrid}>
             {catches.map(c => (
@@ -151,7 +152,8 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
       {/* Expanded catch modal */}
       {expandedCatch && (() => {
-        const idx = catches.findIndex(c => c.id === expandedCatch.id)
+        const real = realCatches(catches)
+        const realIdx = real.findIndex(c => c.id === expandedCatch.id)
         return (
           <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
             <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
@@ -179,7 +181,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                   {expandedCatch.fly_size && <div><span className={styles.expandedStatLabel}>Size</span><span className={styles.expandedStatVal}>#{expandedCatch.fly_size}</span></div>}
                   {expandedCatch.fly && <div><span className={styles.expandedStatLabel}>Fly</span><span className={styles.expandedStatVal}>{expandedCatch.fly}</span></div>}
                 </div>
-                <div className={styles.expandedMeta}>{idx + 1} of {catches.length} catches</div>
+                {!isNoFish(expandedCatch) && realIdx >= 0 && (
+                  <div className={styles.expandedMeta}>{realIdx + 1} of {real.length} catches</div>
+                )}
               </div>
             </div>
           </div>
