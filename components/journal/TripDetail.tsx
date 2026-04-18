@@ -116,8 +116,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
               <div key={c.id} className={styles.catchCard} onClick={() => setExpandedCatch(c)}>
                 <div className={styles.catchPhoto}>
                   {c.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.photo_url} alt={c.species} className={styles.catchImg} />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.photo_url} alt="" aria-hidden="true" className={styles.catchImgBlur} />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.photo_url} alt={c.species} className={styles.catchImg} />
+                    </>
                   ) : (
                     <div className={styles.catchNoPhoto}>
                       <svg viewBox="0 0 40 28" fill="none"><path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>

@@ -229,13 +229,28 @@
   position: relative;
   aspect-ratio: 3/4;
   background: linear-gradient(135deg, #1e4d43, #2d6a4f);
+  overflow: hidden;
+}
+
+.catchImgBlur {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(28px) saturate(1.1) brightness(0.75);
+  transform: scale(1.18);
+  z-index: 0;
 }
 
 .catchImg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
+  z-index: 1;
 }
 
 .catchNoPhoto {
