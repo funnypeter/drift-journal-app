@@ -1,6 +1,6 @@
 {
   "name": "Drift Journal",
-  "short_name": "Drift",
+  "short_name": "Drift Journal",
   "description": "Fly fishing trip journal with live USGS conditions and AI fish identification",
   "start_url": "/dashboard",
   "display": "standalone",
