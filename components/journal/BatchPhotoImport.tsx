@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { parseExif, groupPhotosByDate, type PhotoGroup } from '@/lib/exifUtils'
-import { compressForIdentify, compressForUpload } from '@/lib/imageUtils'
+import { compressForIdentify, compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
 import styles from './BatchPhotoImport.module.css'
 
 type Phase = 'select' | 'parsing' | 'preview' | 'processing' | 'done'
@@ -29,18 +29,18 @@ export default function BatchPhotoImport({ onCancel }: Props) {
     setPhase('parsing')
     setParseProgress({ current: 0, total: files.length })
 
-    // Create thumbnail URLs
+    // Parse EXIF from the raw bytes (HEIC EXIF is readable), then convert HEIC→JPEG
+    // so thumbnails render and the later upload/identify pipeline works everywhere.
     const urls = new Map<File, string>()
-    for (const f of files) urls.set(f, URL.createObjectURL(f))
-    setThumbUrls(urls)
-
-    // Parse EXIF
     const parsed = []
     for (let i = 0; i < files.length; i++) {
       setParseProgress({ current: i + 1, total: files.length })
-      parsed.push(await parseExif(files[i]))
+      const exif = await parseExif(files[i])
+      const usable = await ensureJpegIfHeic(files[i]).catch(() => files[i])
+      urls.set(usable, URL.createObjectURL(usable))
+      parsed.push({ ...exif, file: usable })
     }
-
+    setThumbUrls(urls)
     setGroups(groupPhotosByDate(parsed))
     setPhase('preview')
   }
