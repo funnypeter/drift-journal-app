@@ -5,23 +5,35 @@ import type { Trip, Catch, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
 import styles from './ShareCard.module.css'
 
-interface Tag { key: string; label: string; on: boolean }
+// Tier 1 = large italic title line (usually location)
+// Tier 2 = medium inline details line (species · length · fly · fly size)
+// Tier 3 = pill tags at the bottom (date, weather, moon, water temp, flow, pressure)
+type Tier = 1 | 2 | 3
+interface Tag { key: string; label: string; on: boolean; tier: Tier }
 
 function buildTags(trip: Trip, catch_: Catch): Tag[] {
   const tags: Tag[] = []
-  if (trip.location) tags.push({ key: 'location', label: trip.location.split(',')[0], on: true })
-  if (catch_.length) tags.push({ key: 'size', label: `${catch_.length}"`, on: true })
-  if (catch_.fly) tags.push({ key: 'fly', label: catch_.fly, on: true })
-  if (catch_.fly_size) tags.push({ key: 'flysize', label: `#${catch_.fly_size}`, on: true })
-  if (trip.flow) tags.push({ key: 'flow', label: `${trip.flow} CFS`, on: true })
-  if (trip.water_temp) tags.push({ key: 'watertemp', label: `${trip.water_temp}°F water`, on: false })
+
+  // Tier 1 — title
+  if (trip.location) tags.push({ key: 'location', label: trip.location.split(',')[0], on: true, tier: 1 })
+
+  // Tier 2 — inline details
+  if (catch_.species) tags.push({ key: 'species', label: catch_.species, on: true, tier: 2 })
+  if (catch_.length) tags.push({ key: 'length', label: `${catch_.length}"`, on: true, tier: 2 })
+  if (catch_.fly) tags.push({ key: 'fly', label: catch_.fly, on: true, tier: 2 })
+  if (catch_.fly_size) tags.push({ key: 'fly_size', label: `#${catch_.fly_size}`, on: true, tier: 2 })
+
+  // Tier 3 — conditions pills
   if (trip.date) {
     const d = new Date(trip.date)
-    tags.push({ key: 'date', label: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(), on: false })
+    tags.push({ key: 'date', label: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(), on: false, tier: 3 })
   }
-  if (trip.weather) tags.push({ key: 'weather', label: trip.weather, on: false })
-  if (trip.baro) tags.push({ key: 'baro', label: `${trip.baro} inHg`, on: false })
-  if (trip.moon) tags.push({ key: 'moon', label: trip.moon, on: false })
+  if (trip.weather) tags.push({ key: 'weather', label: trip.weather, on: false, tier: 3 })
+  if (trip.moon) tags.push({ key: 'moon', label: trip.moon, on: false, tier: 3 })
+  if (trip.water_temp) tags.push({ key: 'water_temp', label: `${trip.water_temp}°F water`, on: false, tier: 3 })
+  if (trip.flow) tags.push({ key: 'flow', label: `${trip.flow} CFS`, on: true, tier: 3 })
+  if (trip.baro) tags.push({ key: 'baro', label: `${trip.baro} inHg`, on: false, tier: 3 })
+
   return tags
 }
 
@@ -76,21 +88,29 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       ctx.drawImage(img, ox, oy, sw, sh)
     }
 
-    // Active tags as pills at bottom
-    const activeTags = tags.filter(t => t.on)
+    // Split active tags by tier.
+    const tier1 = tags.find(t => t.on && t.tier === 1)
+    const tier2 = tags.filter(t => t.on && t.tier === 2)
+    const tier3 = tags.filter(t => t.on && t.tier === 3)
+
+    // Font sizes per tier.
+    const tier1Size = Math.round(W * 0.062) // large italic title
+    const tier2Size = Math.round(W * 0.036) // medium inline details
     const tagFontSize = Math.round(W * 0.024)
     const tagPadX = Math.round(W * 0.018)
     const tagPadY = Math.round(W * 0.01)
     const tagGap = Math.round(W * 0.01)
     const tagH = tagFontSize + tagPadY * 2
     const tagLineH = tagH + tagGap
-    ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
+    const countSize = Math.round(W * 0.02)
+    const lineGap = Math.round(W * 0.014)
 
-    // Wrap tags into rows
+    // Wrap tier-3 pills into rows (needs measureText, so set font first).
+    ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
     const rows: Array<Array<{ label: string; w: number }>> = [[]]
     let rowW = 0
     const maxRowW = W - PAD * 2
-    activeTags.forEach(tag => {
+    tier3.forEach(tag => {
       const tw = ctx.measureText(tag.label).width + tagPadX * 2
       if (rowW + tw + tagGap > maxRowW && rows[rows.length - 1].length > 0) {
         rows.push([]); rowW = 0
@@ -98,23 +118,24 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       rows[rows.length - 1].push({ label: tag.label, w: tw })
       rowW += tw + tagGap
     })
+    const showTier3 = tier3.length > 0 && rows[0].length > 0
+    const pillsH = showTier3 ? rows.length * tagLineH : 0
 
-    // Species name
-    const speciesSize = Math.round(W * 0.058)
+    // Compute stacked block height (only lines that are on contribute).
+    const tier1H = tier1 ? tier1Size * 1.15 : 0
+    const tier2H = tier2.length > 0 ? tier2Size * 1.35 : 0
+    const countH = countSize * 2
+    const gapsH = [tier1H, tier2H, pillsH, countH].filter(h => h > 0).length > 1
+      ? ([tier1H, tier2H, pillsH, countH].filter(h => h > 0).length - 1) * lineGap
+      : 0
+    const totalH = tier1H + tier2H + pillsH + countH + gapsH
 
-    const totalTagH = rows.length > 0 ? rows.length * tagLineH + tagGap : 0
-    const countSize = Math.round(W * 0.02)
-    const statsH = W * 0.035 * 2.5
-    const speciesY = H - PAD - countSize * 2 - totalTagH - statsH - speciesSize * 0.2
-
-    // Record tag-block bounds in canvas coords (for drag hit-testing).
-    const blockTop = speciesY - speciesSize
-    const blockBottom = H - PAD * 0.3
+    const blockTop = H - PAD - totalH
     tagBoundsRef.current = {
       x: PAD + tagOffset.x,
       y: blockTop + tagOffset.y,
       w: W - PAD * 2,
-      h: blockBottom - blockTop,
+      h: totalH,
     }
 
     // Translate the entire tag block by tagOffset so the user can drag it.
@@ -133,39 +154,32 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       ctx.shadowOffsetY = 0
     }
 
-    enableTextShadow()
-    ctx.font = `italic 700 ${speciesSize}px "Playfair Display", Georgia, serif`
-    ctx.fillStyle = 'white'
-    ctx.fillText(catch_.species || 'Unknown', PAD, speciesY)
+    let y = blockTop
 
-    // Stats row
-    const labelSize = Math.round(W * 0.02)
-    const valSize = Math.round(W * 0.032)
-    let sx = PAD
-    const statsY = speciesY + labelSize * 1.8
-
-    const stats: { label: string; value: string }[] = []
-    if (catch_.length) stats.push({ label: 'LENGTH', value: `${catch_.length}"` })
-    if (catch_.fly_size) stats.push({ label: 'SIZE', value: `#${catch_.fly_size}` })
-    if (catch_.fly) stats.push({ label: 'FLY', value: catch_.fly })
-
-    stats.forEach(s => {
-      ctx.font = `700 ${labelSize}px "Inter", system-ui, sans-serif`
-      ctx.fillStyle = 'rgba(255,255,255,0.75)'
-      ctx.fillText(s.label, sx, statsY)
-      ctx.font = `700 ${valSize}px "Inter", system-ui, sans-serif`
+    // Line 1 — large italic title (usually location)
+    if (tier1) {
+      enableTextShadow()
+      ctx.font = `italic 700 ${tier1Size}px "Playfair Display", Georgia, serif`
       ctx.fillStyle = 'white'
-      ctx.fillText(s.value, sx, statsY + valSize * 1.2)
-      sx += ctx.measureText(s.value).width + W * 0.04
-    })
+      ctx.fillText(tier1.label, PAD, y + tier1Size)
+      y += tier1H + lineGap
+    }
 
-    // Tag pills — draw backgrounds without shadow, then text with shadow.
-    if (activeTags.length > 0) {
-      const pillStartY = statsY + valSize * 1.2 + tagGap * 2
+    // Line 2 — medium inline details (species · length · fly · fly size)
+    if (tier2.length > 0) {
+      enableTextShadow()
+      ctx.font = `600 ${tier2Size}px "Inter", system-ui, sans-serif`
+      ctx.fillStyle = 'white'
+      ctx.fillText(tier2.map(t => t.label).join('  ·  '), PAD, y + tier2Size)
+      y += tier2H + lineGap
+    }
+
+    // Line 3 — pill tags (conditions). Draw backgrounds without shadow, then text with shadow.
+    if (showTier3) {
       ctx.font = `600 ${tagFontSize}px "Inter", system-ui, sans-serif`
 
       disableShadow()
-      let rowY = pillStartY
+      let rowY = y
       rows.forEach(row => {
         let tx = PAD
         row.forEach(tag => {
@@ -181,7 +195,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       })
 
       enableTextShadow()
-      rowY = pillStartY
+      rowY = y
       rows.forEach(row => {
         let tx = PAD
         row.forEach(tag => {
@@ -191,12 +205,14 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
         })
         rowY += tagLineH
       })
+      y += pillsH + lineGap
     }
 
-    // Catch count
+    // Catch count — always shown
+    enableTextShadow()
     ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
     ctx.fillStyle = 'rgba(255,255,255,0.75)'
-    ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, H - PAD * 0.7)
+    ctx.fillText(`${catchIndex + 1} of ${catches.length} catches`, PAD, y + countSize)
 
     disableShadow()
 
@@ -358,21 +374,31 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
           </div>
         </div>
 
-        {/* Tag toggles */}
-        <div className={styles.section}>
-          <div className={styles.sectionLabel}>Tags — tap to toggle</div>
-          <div className={styles.pills}>
-            {tags.map((tag, i) => (
-              <button
-                key={i}
-                className={`${styles.pill} ${tag.on ? styles.pillActive : ''}`}
-                onClick={() => toggleTag(i)}
-              >
-                {tag.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Tag toggles — grouped by which line they render on */}
+        {([
+          { tier: 1 as const, label: 'Line 1 — Title' },
+          { tier: 2 as const, label: 'Line 2 — Details' },
+          { tier: 3 as const, label: 'Line 3 — Conditions' },
+        ]).map(({ tier, label }) => {
+          const tierTags = tags.map((tag, i) => ({ tag, i })).filter(({ tag }) => tag.tier === tier)
+          if (tierTags.length === 0) return null
+          return (
+            <div key={tier} className={styles.section}>
+              <div className={styles.sectionLabel}>{label}</div>
+              <div className={styles.pills}>
+                {tierTags.map(({ tag, i }) => (
+                  <button
+                    key={i}
+                    className={`${styles.pill} ${tag.on ? styles.pillActive : ''}`}
+                    onClick={() => toggleTag(i)}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
 
         {/* Download */}
         <button className={styles.downloadBtn} onClick={download} disabled={downloading}>
