@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
-import { compressForIdentify } from '@/lib/imageUtils'
+import { compressForIdentify, ensureJpegIfHeic } from '@/lib/imageUtils'
 import { FLY_DATA, FLY_SIZES } from '@/types'
 import SpeciesSelect from './SpeciesSelect'
 import styles from './CatchCard.module.css'
@@ -53,10 +53,12 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const preview = URL.createObjectURL(file)
-    onChange({ photoFile: file, photoPreview: preview })
     try {
-      const compressed = await compressForIdentify(file, 1200, 0.7)
+      // Convert HEIC → JPEG up-front so the preview renders and save() doesn't re-convert.
+      const usable = await ensureJpegIfHeic(file)
+      const preview = URL.createObjectURL(usable)
+      onChange({ photoFile: usable, photoPreview: preview })
+      const compressed = await compressForIdentify(usable, 1200, 0.7)
       runIdentify(compressed.base64, compressed.mimeType)
     } catch (err: any) {
       setAiResult(`Photo error: ${err.message}`)
