@@ -6,38 +6,13 @@ import type { Trip, Catch } from '@/types'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
+import { compressForUpload } from '@/lib/imageUtils'
 import styles from './NewTripForm.module.css'
 
 interface CatchDraft extends Partial<Catch> {
   photoFile?: File
   photoPreview?: string
   _delete?: boolean
-}
-
-function compressForUpload(file: File, maxDim: number, quality: number): Promise<File> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      let { width, height } = img
-      if (width <= maxDim && height <= maxDim && file.size < 3 * 1024 * 1024) {
-        resolve(file)
-        return
-      }
-      if (width > maxDim || height > maxDim) {
-        const ratio = Math.min(maxDim / width, maxDim / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      canvas.toBlob(blob => {
-        resolve(new File([blob!], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
-      }, 'image/jpeg', quality)
-    }
-    img.src = URL.createObjectURL(file)
-  })
 }
 
 export default function EditTripForm({ trip }: { trip: Trip }) {
@@ -145,27 +120,31 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         const c = catches[i]
 
         if (c._delete && c.id) {
-          await fetch('/api/catches', {
+          const delResp = await fetch('/api/catches', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: c.id }),
           })
+          if (!delResp.ok) {
+            const errData = await delResp.json().catch(() => ({}))
+            throw new Error(errData.error || `Failed to delete catch #${i + 1}`)
+          }
           photoUrls.push(null)
           continue
         }
 
         let photoUrl = c.photo_url || null
         if (c.photoFile) {
-          try {
-            const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
-            const formData = new FormData()
-            formData.append('file', compressed)
-            const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
-            if (uploadResp.ok) {
-              const uploadData = await uploadResp.json()
-              photoUrl = uploadData.url
-            }
-          } catch {}
+          const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
+          const formData = new FormData()
+          formData.append('file', compressed)
+          const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
+          if (!uploadResp.ok) {
+            const errData = await uploadResp.json().catch(() => ({}))
+            throw new Error(errData.error || `Photo upload failed for catch #${i + 1}`)
+          }
+          const uploadData = await uploadResp.json()
+          photoUrl = uploadData.url
         }
         photoUrls.push(photoUrl)
 
@@ -178,29 +157,35 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           notes: c.notes, photo_url: photoUrl, sort_order: i,
         }
 
-        if (c.id) {
-          await fetch('/api/catches', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: c.id, ...catchData }),
-          })
-        } else {
-          await fetch('/api/catches', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(catchData),
-          })
+        const catchResp = c.id
+          ? await fetch('/api/catches', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: c.id, ...catchData }),
+            })
+          : await fetch('/api/catches', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(catchData),
+            })
+        if (!catchResp.ok) {
+          const errData = await catchResp.json().catch(() => ({}))
+          throw new Error(errData.error || `Failed to save catch #${i + 1}`)
         }
       }
 
       // Update hero photo
       const heroPhotoUrl = photoUrls[heroIndex] || photoUrls.find(u => u) || null
       if (heroPhotoUrl) {
-        await fetch(`/api/trips/${trip.id}`, {
+        const heroResp = await fetch(`/api/trips/${trip.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hero_photo_url: heroPhotoUrl }),
         })
+        if (!heroResp.ok) {
+          const errData = await heroResp.json().catch(() => ({}))
+          throw new Error(errData.error || 'Failed to update hero photo')
+        }
       }
 
       router.push(`/trips/${trip.id}`)
