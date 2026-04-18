@@ -150,6 +150,12 @@
   padding: 12px 14px;
 }
 
+/* Last item fills the remainder of its row so empty cells don't show as
+   gray boxes through the 1px grid-gap background. */
+.condItem:last-child {
+  grid-column: 1 / -1;
+}
+
 .condItemLabel {
   font-size: 9px;
   text-transform: uppercase;
