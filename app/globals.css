@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;500;600;700;800&family=Caveat:wght@400;600&display=swap');
 
 :root {
   --serif: 'Playfair Display', Georgia, serif;
   --sans: 'Inter', system-ui, sans-serif;
+  --script: 'Caveat', 'Comic Sans MS', cursive;
   --bg: #f2ede4;
   --bg2: #ede8df;
   --teal: #1e4d43;

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Playfair_Display, Inter } from 'next/font/google'
+import { Playfair_Display, Inter, Caveat } from 'next/font/google'
 import NavBarWrapper from '@/components/ui/NavBarWrapper'
 import './globals.css'
 
@@ -12,6 +12,13 @@ const playfair = Playfair_Display({
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
+  display: 'swap',
+})
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  variable: '--font-script',
+  weight: ['400', '600'],
   display: 'swap',
 })
 
@@ -36,7 +43,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+    <html lang="en" className={`${playfair.variable} ${inter.variable} ${caveat.variable}`}>
       <body>
         <div style={{ minHeight: '100vh', paddingBottom: 'var(--nav-h)' }}>
           {children}
