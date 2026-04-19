@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Trip, Catch, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
-import { realCatches, isNoFish } from '@/lib/catchUtils'
 import styles from './ShareCard.module.css'
 
 // Tier 1 = large italic title line (usually location)
@@ -47,7 +46,18 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath()
 }
 
-export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch_: Catch; onClose: () => void }) {
+interface ShareCardProps {
+  trip: Trip
+  catch_: Catch
+  onClose: () => void
+  // Caller passes the index/total it already computed for the trip-detail view
+  // so the share card never has to recount and can never disagree with what's
+  // shown elsewhere on the page.
+  catchNumber?: number
+  catchTotal?: number
+}
+
+export default function ShareCard({ trip, catch_, onClose, catchNumber, catchTotal }: ShareCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [platform, setPlatform] = useState(PLATFORMS[0])
   const [downloading, setDownloading] = useState(false)
@@ -60,11 +70,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
   })
   const tagBoundsRef = useRef({ x: 0, y: 0, w: 0, h: 0 }) // in canvas pixel coords
   const imgRef = useRef<HTMLImageElement | null>(null)
-  // Only real catches contribute to the count — "No Fish" entries are trip
-  // logs with nothing caught and shouldn't appear in "X of Y catches".
-  const countedCatches = realCatches(trip.catches || [])
-  const catchIndex = countedCatches.findIndex(c => c.id === catch_.id)
-  const showCount = !isNoFish(catch_) && catchIndex >= 0 && countedCatches.length > 0
+  const showCount = typeof catchNumber === 'number' && typeof catchTotal === 'number' && catchTotal > 0
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -217,7 +223,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       enableTextShadow()
       ctx.font = `500 ${countSize}px "Inter", system-ui, sans-serif`
       ctx.fillStyle = 'rgba(255,255,255,0.75)'
-      ctx.fillText(`${catchIndex + 1} of ${countedCatches.length} catches`, PAD, y + countSize)
+      ctx.fillText(`${catchNumber} of ${catchTotal} catches`, PAD, y + countSize)
     }
 
     disableShadow()
@@ -254,7 +260,7 @@ export default function ShareCard({ trip, catch_, onClose }: { trip: Trip; catch
       }
       logoImg.src = '/icon-192.png'
     }
-  }, [platform, imgOffset, tagOffset, zoom, tags, catch_, countedCatches.length, catchIndex, showCount])
+  }, [platform, imgOffset, tagOffset, zoom, tags, catch_, catchNumber, catchTotal, showCount])
 
   // Load image
   useEffect(() => {

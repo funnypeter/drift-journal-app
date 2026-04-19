@@ -226,9 +226,20 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       )}
 
       {/* Share Card Modal */}
-      {shareTarget && (
-        <ShareCard trip={trip} catch_={shareTarget} onClose={() => setShareTarget(null)} />
-      )}
+      {shareTarget && (() => {
+        const real = realCatches(catches)
+        const idxInReal = real.findIndex(c => c.id === shareTarget.id)
+        const showCount = !isNoFish(shareTarget) && idxInReal >= 0
+        return (
+          <ShareCard
+            trip={trip}
+            catch_={shareTarget}
+            onClose={() => setShareTarget(null)}
+            catchNumber={showCount ? idxInReal + 1 : undefined}
+            catchTotal={showCount ? real.length : undefined}
+          />
+        )
+      })()}
     </div>
   )
 }
