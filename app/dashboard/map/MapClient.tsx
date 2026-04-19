@@ -59,7 +59,13 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
       link.style.cssText = 'display:block;text-align:center;background:#1e4d43;color:white;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;margin-top:4px'
       wrap.appendChild(link)
 
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup', maxWidth: '240px' })
+      // Anchor 'bottom' = popup's bottom sits at the marker, so it opens UPWARD
+      // into the map area. Mapbox's default anchor logic checks the viewport
+      // edges (not the map container), so on tall screens with a list below the
+      // map it picks 'top' (popup opens downward) and the popup's bottom gets
+      // hidden behind the trip cards. Forcing bottom keeps the popup inside
+      // the map area regardless of folded/unfolded screen size.
+      const popup = new mapboxgl.Popup({ offset: 30, closeButton: false, className: 'drift-popup', maxWidth: '260px', anchor: 'bottom' })
         .setDOMContent(wrap)
 
       const marker = new mapboxgl.Marker({ color: '#1e4d43' })
