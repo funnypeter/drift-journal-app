@@ -30,6 +30,10 @@
   border-radius: 16px;
   box-shadow: var(--shadow);
   position: relative;
+  /* z-index lifts the map's stacking context (and its popups) above the
+     trip-list cards that follow in the DOM, so popups extending below the
+     map aren't covered by them. */
+  z-index: 5;
   /* No overflow:hidden here — popups need to escape the map bounds.
      The canvas container below still clips the map tiles to the rounded corners. */
 }
@@ -37,6 +41,10 @@
 .map :global(.mapboxgl-canvas-container) {
   border-radius: 16px;
   overflow: hidden;
+}
+
+.map :global(.mapboxgl-popup) {
+  z-index: 10;
 }
 
 .empty {
