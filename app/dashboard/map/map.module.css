@@ -28,9 +28,15 @@
   width: 100%;
   height: 50vh;
   border-radius: 16px;
-  overflow: hidden;
   box-shadow: var(--shadow);
   position: relative;
+  /* No overflow:hidden here — popups need to escape the map bounds.
+     The canvas container below still clips the map tiles to the rounded corners. */
+}
+
+.map :global(.mapboxgl-canvas-container) {
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .empty {
