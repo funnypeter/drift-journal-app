@@ -39,19 +39,28 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
     initialTrips.forEach(t => {
       const catchCount = realCatches(t.catches || []).length
       const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup', maxWidth: '260px' })
-        .setHTML(`
-          <div style="padding:14px 16px;font-family:Inter,system-ui,sans-serif">
-            <div style="font-weight:800;font-size:15px;color:#1a1a1a;margin-bottom:4px">${t.title}</div>
-            <div style="font-size:12px;color:#8a8a7a;margin-bottom:8px">${t.location || ''} · ${dateStr}</div>
-            <div style="display:flex;gap:12px;font-size:12px;color:#4a4a4a;margin-bottom:10px">
-              <span>💧 ${t.flow ? t.flow + ' cfs' : 'N/A'}</span>
-              <span>🌡 ${t.water_temp ? t.water_temp + '°F' : 'N/A'}</span>
-            </div>
-            <div style="font-size:12px;color:#4a4a4a;margin-bottom:12px">🐟 ${catchCount} catch${catchCount !== 1 ? 'es' : ''}</div>
-            <a href="/trips/${t.id}" style="display:block;text-align:center;background:#1e4d43;color:white;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">View Entry →</a>
-          </div>
-        `)
+      // Build popup DOM explicitly so the View Entry button can't be lost to
+      // any HTML-parsing edge case, and the popup is more compact so it fits
+      // within the map height even with markers near the bottom.
+      const wrap = document.createElement('div')
+      wrap.style.cssText = 'padding:12px 14px;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;gap:6px'
+      wrap.innerHTML = `
+        <div style="font-weight:800;font-size:14px;color:#1a1a1a;line-height:1.25">${t.title}</div>
+        <div style="font-size:11px;color:#8a8a7a">${t.location || ''} · ${dateStr}</div>
+        <div style="display:flex;gap:10px;font-size:11px;color:#4a4a4a">
+          <span>💧 ${t.flow ? t.flow + ' cfs' : 'N/A'}</span>
+          <span>🌡 ${t.water_temp ? t.water_temp + '°F' : 'N/A'}</span>
+          <span>🐟 ${catchCount}</span>
+        </div>
+      `
+      const link = document.createElement('a')
+      link.href = `/trips/${t.id}`
+      link.textContent = 'View Entry →'
+      link.style.cssText = 'display:block;text-align:center;background:#1e4d43;color:white;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;margin-top:4px'
+      wrap.appendChild(link)
+
+      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, className: 'drift-popup', maxWidth: '240px' })
+        .setDOMContent(wrap)
 
       const marker = new mapboxgl.Marker({ color: '#1e4d43' })
         .setLngLat([t.lng!, t.lat!])
