@@ -88,9 +88,6 @@ export const PLATFORMS: Platform[] = [
 ]
 
 export const SPECIES_BY_CATEGORY: Record<string, string[]> = {
-  'No Catch': [
-    'No Fish', 'Skunked', 'Scenery',
-  ],
   'Trout & Char': [
     'Rainbow Trout', 'Brown Trout', 'Cutthroat Trout', 'Brook Trout',
     'Bull Trout', 'Lake Trout', 'Golden Trout', 'Tiger Trout',
