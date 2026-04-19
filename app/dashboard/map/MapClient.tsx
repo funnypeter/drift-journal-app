@@ -14,6 +14,7 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
   const popupsRef = useRef<Map<string, mapboxgl.Popup>>(new Map())
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const openPopupRef = useRef<((t: Trip) => void) | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -35,18 +36,15 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
     initialTrips.forEach(t => bounds.extend([t.lng!, t.lat!]))
     map.fitBounds(bounds, { padding: 60, maxZoom: 12 })
 
-    // Add markers
-    initialTrips.forEach(t => {
-      const catchCount = realCatches(t.catches || []).length
-      const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
-      // Build popup DOM explicitly so the View Entry button can't be lost to
-      // any HTML-parsing edge case, and the popup is more compact so it fits
-      // within the map height even with markers near the bottom.
+    // Build the popup DOM for a trip. Single-line title/location with ellipsis
+    // keeps the popup at a consistent compact height so it fits inside the map
+    // area whether it opens upward or downward from the marker.
+    function buildPopupContent(t: Trip, catchCount: number, dateStr: string) {
       const wrap = document.createElement('div')
-      wrap.style.cssText = 'padding:12px 14px;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;gap:6px'
+      wrap.style.cssText = 'padding:12px 14px;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;width:240px;box-sizing:border-box'
       wrap.innerHTML = `
-        <div style="font-weight:800;font-size:14px;color:#1a1a1a;line-height:1.25">${t.title}</div>
-        <div style="font-size:11px;color:#8a8a7a">${t.location || ''} · ${dateStr}</div>
+        <div style="font-weight:800;font-size:14px;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(t.title || '').replace(/"/g, '&quot;')}">${t.title}</div>
+        <div style="font-size:11px;color:#8a8a7a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.location || ''} · ${dateStr}</div>
         <div style="display:flex;gap:10px;font-size:11px;color:#4a4a4a">
           <span>💧 ${t.flow ? t.flow + ' cfs' : 'N/A'}</span>
           <span>🌡 ${t.water_temp ? t.water_temp + '°F' : 'N/A'}</span>
@@ -58,29 +56,58 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
       link.textContent = 'View Entry →'
       link.style.cssText = 'display:block;text-align:center;background:#1e4d43;color:white;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;margin-top:4px'
       wrap.appendChild(link)
+      return wrap
+    }
 
-      // Anchor 'bottom' = popup's bottom sits at the marker, so it opens UPWARD
-      // into the map area. Mapbox's default anchor logic checks the viewport
-      // edges (not the map container), so on tall screens with a list below the
-      // map it picks 'top' (popup opens downward) and the popup's bottom gets
-      // hidden behind the trip cards. Forcing bottom keeps the popup inside
-      // the map area regardless of folded/unfolded screen size.
-      const popup = new mapboxgl.Popup({ offset: 30, closeButton: false, className: 'drift-popup', maxWidth: '260px', anchor: 'bottom' })
-        .setDOMContent(wrap)
+    // Pick anchor based on marker pixel position within the map so the popup
+    // always opens into the side with more room (and never clips at top or bottom).
+    function pickAnchor(lng: number, lat: number): 'top' | 'bottom' {
+      const m = mapRef.current
+      if (!m) return 'bottom'
+      const point = m.project([lng, lat])
+      const h = m.getContainer().clientHeight
+      return point.y > h / 2 ? 'bottom' : 'top'
+    }
 
+    // Open (or re-open) the popup for a trip with the right anchor for its
+    // current map position.
+    function openPopup(t: Trip) {
+      const m = mapRef.current
+      if (!m) return
+      // Close any open popup first.
+      popupsRef.current.forEach(p => p.remove())
+      const catchCount = realCatches(t.catches || []).length
+      const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+      const popup = new mapboxgl.Popup({
+        offset: 30,
+        closeButton: false,
+        className: 'drift-popup',
+        maxWidth: '260px',
+        anchor: pickAnchor(t.lng!, t.lat!),
+      })
+        .setLngLat([t.lng!, t.lat!])
+        .setDOMContent(buildPopupContent(t, catchCount, dateStr))
+        .addTo(m)
+      popupsRef.current.set(t.id, popup)
+    }
+    // Expose for flyToTrip
+    openPopupRef.current = openPopup
+
+    // Add markers
+    initialTrips.forEach(t => {
       const marker = new mapboxgl.Marker({ color: '#1e4d43' })
         .setLngLat([t.lng!, t.lat!])
-        .setPopup(popup)
         .addTo(map)
 
+      marker.getElement().style.cursor = 'pointer'
       marker.getElement().addEventListener('click', () => {
         setSelectedId(t.id)
         const card = cardRefs.current.get(t.id)
         card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        openPopup(t)
       })
 
       markersRef.current.set(t.id, marker)
-      popupsRef.current.set(t.id, popup)
     })
 
     return () => { map.remove() }
@@ -88,14 +115,13 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
 
   function flyToTrip(tripId: string) {
     const trip = initialTrips.find(t => t.id === tripId)
-    if (!trip || !mapRef.current) return
+    const map = mapRef.current
+    if (!trip || !map) return
     setSelectedId(tripId)
-    mapRef.current.flyTo({ center: [trip.lng!, trip.lat!], zoom: 13 })
-    // Open popup
-    popupsRef.current.forEach(p => p.remove())
-    const popup = popupsRef.current.get(tripId)
-    const marker = markersRef.current.get(tripId)
-    if (popup && marker) popup.addTo(mapRef.current)
+    map.flyTo({ center: [trip.lng!, trip.lat!], zoom: 13 })
+    // Open popup once the camera has settled so anchor pick uses the final
+    // marker pixel position (which after flyTo is the map center).
+    map.once('moveend', () => openPopupRef.current?.(trip))
   }
 
   return (
