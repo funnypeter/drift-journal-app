@@ -182,6 +182,30 @@
   text-decoration: underline;
 }
 
+.resendBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 6-digit OTP input — wide tracking + centered + larger so the digits
+   read as a discrete code and are easy to scan while typing. */
+.codeInput {
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  padding-left: 16px;
+  padding-right: 0; /* compensate for tracking pushing text right */
+  font-variant-numeric: tabular-nums;
+}
+
+.codeActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

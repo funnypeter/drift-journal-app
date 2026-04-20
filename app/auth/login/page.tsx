@@ -1,34 +1,88 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import styles from './login.module.css'
 
+type Step = 'email' | 'code'
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const router = useRouter()
   const supabase = createClient()
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const codeInputRef = useRef<HTMLInputElement>(null)
+
+  async function sendCode(targetEmail: string) {
     setError('')
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setSent(true)
-    }
+    setLoading(true)
+    const { error: sendErr } = await supabase.auth.signInWithOtp({ email: targetEmail })
     setLoading(false)
+    if (sendErr) {
+      setError(sendErr.message)
+      return false
+    }
+    return true
+  }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const ok = await sendCode(email)
+    if (ok) {
+      setCode('')
+      setStep('code')
+    }
+  }
+
+  async function verifyCode(token: string) {
+    setError('')
+    setLoading(true)
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    })
+    setLoading(false)
+    if (verifyErr) {
+      setError(verifyErr.message)
+      return
+    }
+    router.push('/dashboard')
+    router.refresh()
+  }
+
+  function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (code.length === 6) verifyCode(code)
+  }
+
+  // Auto-submit once the user has typed (or autofilled) all 6 digits.
+  useEffect(() => {
+    if (step !== 'code' || loading) return
+    if (/^\d{6}$/.test(code)) verifyCode(code)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, step])
+
+  // Focus the code field when we enter the code step.
+  useEffect(() => {
+    if (step === 'code') codeInputRef.current?.focus()
+  }, [step])
+
+  async function handleResend() {
+    await sendCode(email)
+    setCode('')
+    codeInputRef.current?.focus()
+  }
+
+  function useDifferentEmail() {
+    setStep('email')
+    setCode('')
+    setError('')
   }
 
   return (
@@ -43,23 +97,14 @@ export default function LoginPage() {
           <span className={styles.logoText}>Drift Journal</span>
         </div>
 
-        {sent ? (
-          <div className={styles.sentState}>
-            <div className={styles.sentIcon}>✉️</div>
-            <h2>Check your email</h2>
-            <p>We sent a magic link to <strong>{email}</strong>. Tap it to sign in — no password needed.</p>
-            <button className={styles.resendBtn} onClick={() => setSent(false)}>
-              Use a different email
-            </button>
-          </div>
-        ) : (
+        {step === 'email' ? (
           <>
             <div className={styles.header}>
               <h1>Welcome back</h1>
-              <p>Enter your email to receive a magic sign-in link.</p>
+              <p>Enter your email and we&apos;ll send you a 6-digit sign-in code.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className={styles.form}>
+            <form onSubmit={handleEmailSubmit} className={styles.form}>
               <input
                 type="email"
                 placeholder="your@email.com"
@@ -68,6 +113,7 @@ export default function LoginPage() {
                 className={styles.input}
                 required
                 autoFocus
+                autoComplete="email"
               />
               {error && <p className={styles.error}>{error}</p>}
               <button
@@ -75,17 +121,53 @@ export default function LoginPage() {
                 className={styles.button}
                 disabled={loading || !email}
               >
-                {loading ? (
-                  <span className={styles.spinner} />
-                ) : (
-                  'Send magic link'
-                )}
+                {loading ? <span className={styles.spinner} /> : 'Send code'}
               </button>
             </form>
 
             <p className={styles.note}>
-              New here? Just enter your email — we'll create your account automatically.
+              New here? Just enter your email — we&apos;ll create your account automatically.
             </p>
+          </>
+        ) : (
+          <>
+            <div className={styles.header}>
+              <h1>Enter your code</h1>
+              <p>We sent a 6-digit code to <strong>{email}</strong>. It may take a moment to arrive.</p>
+            </div>
+
+            <form onSubmit={handleCodeSubmit} className={styles.form}>
+              <input
+                ref={codeInputRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className={`${styles.input} ${styles.codeInput}`}
+                required
+              />
+              {error && <p className={styles.error}>{error}</p>}
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={loading || code.length !== 6}
+              >
+                {loading ? <span className={styles.spinner} /> : 'Verify'}
+              </button>
+            </form>
+
+            <div className={styles.codeActions}>
+              <button type="button" className={styles.resendBtn} onClick={handleResend} disabled={loading}>
+                Resend code
+              </button>
+              <button type="button" className={styles.resendBtn} onClick={useDifferentEmail} disabled={loading}>
+                Use a different email
+              </button>
+            </div>
           </>
         )}
       </div>
