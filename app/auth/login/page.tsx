@@ -61,17 +61,6 @@ export default function LoginPage() {
     if (code.length >= 6) verifyCode(code)
   }
 
-  // Auto-submit once the user has pasted/autofilled a complete code. Supabase
-  // sends a 6–10 digit OTP depending on project settings, so we don't assume a
-  // fixed length — instead we wait a beat after the last keystroke.
-  useEffect(() => {
-    if (step !== 'code' || loading) return
-    if (!/^\d{6,10}$/.test(code)) return
-    const t = setTimeout(() => verifyCode(code), 400)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, step])
-
   // Focus the code field when we enter the code step.
   useEffect(() => {
     if (step === 'code') codeInputRef.current?.focus()
