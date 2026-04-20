@@ -58,13 +58,17 @@ export default function LoginPage() {
 
   function handleCodeSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (code.length === 6) verifyCode(code)
+    if (code.length >= 6) verifyCode(code)
   }
 
-  // Auto-submit once the user has typed (or autofilled) all 6 digits.
+  // Auto-submit once the user has pasted/autofilled a complete code. Supabase
+  // sends a 6–10 digit OTP depending on project settings, so we don't assume a
+  // fixed length — instead we wait a beat after the last keystroke.
   useEffect(() => {
     if (step !== 'code' || loading) return
-    if (/^\d{6}$/.test(code)) verifyCode(code)
+    if (!/^\d{6,10}$/.test(code)) return
+    const t = setTimeout(() => verifyCode(code), 400)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, step])
 
@@ -101,7 +105,7 @@ export default function LoginPage() {
           <>
             <div className={styles.header}>
               <h1>Welcome back</h1>
-              <p>Enter your email and we&apos;ll send you a 6-digit sign-in code.</p>
+              <p>Enter your email and we&apos;ll send you a sign-in code.</p>
             </div>
 
             <form onSubmit={handleEmailSubmit} className={styles.form}>
@@ -133,7 +137,7 @@ export default function LoginPage() {
           <>
             <div className={styles.header}>
               <h1>Enter your code</h1>
-              <p>We sent a 6-digit code to <strong>{email}</strong>. It may take a moment to arrive.</p>
+              <p>We sent a sign-in code to <strong>{email}</strong>. It may take a moment to arrive.</p>
             </div>
 
             <form onSubmit={handleCodeSubmit} className={styles.form}>
@@ -142,11 +146,11 @@ export default function LoginPage() {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                placeholder="123456"
+                pattern="[0-9]{6,10}"
+                maxLength={10}
+                placeholder="Enter code"
                 value={code}
-                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 className={`${styles.input} ${styles.codeInput}`}
                 required
               />
@@ -154,7 +158,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className={styles.button}
-                disabled={loading || code.length !== 6}
+                disabled={loading || code.length < 6}
               >
                 {loading ? <span className={styles.spinner} /> : 'Verify'}
               </button>
