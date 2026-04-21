@@ -47,6 +47,10 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
   useEffect(() => {
     if (!location.lat || location.name === initialLocation.current) return
     initialLocation.current = location.name
+    // Clear stale readings right away so the panel doesn't show the previous
+    // location's numbers while the new fetch is in flight (especially jarring
+    // when crossing US⇄UK unit systems).
+    setConditions(prev => ({ ...prev, flow: '', water_temp: '', gauge_height: '', usgs_site_id: '' }))
     const params = new URLSearchParams({
       type: 'usgs', location: location.name,
       lat: String(location.lat), lng: String(location.lng), date,

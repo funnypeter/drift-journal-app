@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import CatchCard from './CatchCard'
@@ -46,10 +46,21 @@ export default function NewTripForm() {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // Track the last location/date we auto-fetched for so changing location
+  // re-fires the fetch (the previous `conditions.flow` guard blocked refetch
+  // once any value existed, stranding users on a stale location's data).
+  const lastFetchKey = useRef<string | null>(null)
 
-  // Auto-fetch USGS + weather when location is selected
   useEffect(() => {
-    if (!location || conditions.flow) return
+    if (!location) return
+    const key = `${location.lat},${location.lng}|${date}`
+    if (lastFetchKey.current === key) return
+    lastFetchKey.current = key
+
+    // Clear stale river readings immediately so the panel doesn't show the
+    // previous location's values while the new fetch is in flight.
+    setConditions(prev => ({ ...prev, flow: '', water_temp: '', gauge_height: '', usgs_site_id: '' }))
+
     const params = new URLSearchParams({
       type: 'usgs', location: location.name,
       lat: String(location.lat), lng: String(location.lng), date,
@@ -58,10 +69,10 @@ export default function NewTripForm() {
       if (!data.error) {
         setConditions(prev => ({
           ...prev,
-          flow: data.flow || prev.flow,
-          water_temp: data.waterTemp || prev.water_temp,
-          gauge_height: data.gaugeHeight || prev.gauge_height,
-          usgs_site_id: data.siteId || prev.usgs_site_id,
+          flow: data.flow || '',
+          water_temp: data.waterTemp || '',
+          gauge_height: data.gaugeHeight || '',
+          usgs_site_id: data.siteId || '',
         }))
       }
     }).catch(() => {})
@@ -78,7 +89,7 @@ export default function NewTripForm() {
           }))
         }
       }).catch(() => {})
-  }, [location])
+  }, [location, date])
 
   function addCatch() {
     setCatches(prev => [...prev, {
