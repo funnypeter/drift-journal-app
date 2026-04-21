@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
 
   if (type === 'usgs') {
     // UK trips route to Environment Agency (real-time, England) with NRFA
-    // (UK-wide, daily-mean validated) as fallback. Skip the UK path when the
-    // caller passed a specific siteId (treated as a USGS override).
+    // (UK-wide, daily-mean validated) as fallback. We route by lat/lng even
+    // when a siteId is present — the panel's "refresh" button forwards the
+    // trip's saved usgs_site_id, which may be a stale value from a previous
+    // US location; querying USGS with a UK gauge id would return HTTP 400.
     const latNum = lat ? parseFloat(lat) : null
     const lngNum = lng ? parseFloat(lng) : null
-    if (!siteId && isUK(latNum, lngNum)) {
+    if (isUK(latNum, lngNum)) {
       const ea = await fetchEA(latNum!, lngNum!)
       if (ea && (ea.flow || ea.gaugeHeight)) return NextResponse.json(ea)
       const nrfa = await fetchNRFA(latNum!, lngNum!, date)
