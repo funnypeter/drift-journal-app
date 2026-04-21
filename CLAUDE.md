@@ -49,8 +49,9 @@ No `.env.local` file exists locally — all env vars are set in Vercel.
 - **Auth**: Supabase SSR via middleware.ts. Redirects unauthenticated users to /auth/login.
 - **API routes**: Use `createRouteClient()` from `lib/supabase/route` for auth.
 - **Fish ID flow**: Photo -> compress to 1200px -> base64 -> POST /api/identify -> Gemini 2.5 Flash -> returns `{species, length, confidence}`.
-- **Conditions flow**: Location selected -> auto-fetch USGS (flow, water temp, gauge height) + Open-Meteo (air temp, weather, baro, wind) -> displayed in ConditionsPanel.
+- **Conditions flow**: Location selected -> auto-fetch river data (USGS for US, Environment Agency for UK with NRFA fallback) + Open-Meteo (air temp, weather, baro, wind) -> displayed in ConditionsPanel.
 - **USGS gauge lookup**: Hardcoded table of ~20 rivers -> fallback to nearest gauge search by lat/lng.
+- **UK conditions routing**: `lib/geoUtils.ts` `isUK(lat, lng)` bounding-box check. UK trips fetch from Environment Agency real-time API (`environment.data.gov.uk/flood-monitoring`), falling back to NRFA (`nrfa.ceh.ac.uk/api`) for Scotland/Wales/NI or older trip dates. UK conditions display in metric (m³/s, m, °C); US in imperial. Both APIs are free with no auth.
 - **Image handling**: Photos compressed client-side before upload. Supabase storage bucket: `catch-photos`.
 
 ## Commands

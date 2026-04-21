@@ -65,6 +65,13 @@ export interface USGSData {
   waterTemp?: string
   gaugeHeight?: string
   siteId?: string
+  // Which upstream agency served the reading — drives the footer label and
+  // unit rendering in ConditionsPanel. Omitted for pre-existing US callers
+  // (assumed 'usgs').
+  source?: 'usgs' | 'ea' | 'nrfa'
+  // ISO date of the reading. Populated when the source can lag real-time
+  // (e.g. NRFA daily means) so the UI can surface "as of <date>".
+  asOf?: string
 }
 
 export interface WeatherData {
