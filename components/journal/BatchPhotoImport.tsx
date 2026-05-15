@@ -167,6 +167,25 @@ export default function BatchPhotoImport({ onCancel }: Props) {
         let photoUrl: string | null = null
         let species = 'Unknown'
         let length: number | undefined
+        let isFlower = false
+
+        // AI identify first — skip non-fish photos before we upload anything.
+        try {
+          const idData = await compressForIdentify(photo.file)
+          const idResp = await fetch('/api/identify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: idData.base64, mimeType: idData.mimeType }),
+          })
+          if (idResp.ok) {
+            const idResult = await idResp.json()
+            if (idResult.kind === 'flower') isFlower = true
+            if (idResult.species) species = idResult.species
+            if (idResult.length) length = parseFloat(idResult.length)
+          }
+        } catch {}
+
+        if (isFlower) continue
 
         // Upload
         try {
@@ -178,21 +197,6 @@ export default function BatchPhotoImport({ onCancel }: Props) {
             const uploadData = await uploadResp.json()
             photoUrl = uploadData.url
             if (!heroUrl) heroUrl = photoUrl
-          }
-        } catch {}
-
-        // AI identify
-        try {
-          const idData = await compressForIdentify(photo.file)
-          const idResp = await fetch('/api/identify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: idData.base64, mimeType: idData.mimeType }),
-          })
-          if (idResp.ok) {
-            const idResult = await idResp.json()
-            if (idResult.species) species = idResult.species
-            if (idResult.length) length = parseFloat(idResult.length)
           }
         } catch {}
 

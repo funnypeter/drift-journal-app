@@ -12,6 +12,7 @@ import styles from './NewTripForm.module.css'
 interface CatchDraft extends Partial<Catch> {
   photoFile?: File
   photoPreview?: string
+  kind?: 'fish' | 'flower'
   _delete?: boolean
 }
 
@@ -132,6 +133,20 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           if (!delResp.ok) {
             const errData = await delResp.json().catch(() => ({}))
             throw new Error(errData.error || `Failed to delete catch #${i + 1}`)
+          }
+          photoUrls.push(null)
+          continue
+        }
+
+        // Flower-identified entries are not saved as catches. If one was already
+        // persisted (e.g. from before this rule), delete it so it doesn't linger.
+        if (c.kind === 'flower') {
+          if (c.id) {
+            await fetch('/api/catches', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: c.id }),
+            }).catch(() => {})
           }
           photoUrls.push(null)
           continue

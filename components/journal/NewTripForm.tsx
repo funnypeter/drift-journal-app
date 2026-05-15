@@ -23,6 +23,7 @@ interface LocationData {
 interface CatchDraft extends Omit<Catch, 'id' | 'trip_id' | 'user_id' | 'created_at' | 'updated_at'> {
   photoFile?: File
   photoPreview?: string
+  kind?: 'fish' | 'flower'
 }
 
 export default function NewTripForm() {
@@ -135,10 +136,11 @@ export default function NewTripForm() {
       }
       const trip = await tripResp.json()
 
-      // Upload catches
+      // Upload catches (skip flowers — they're identified but not logged)
       const photoUrls: (string | null)[] = []
       for (let i = 0; i < catches.length; i++) {
         const c = catches[i]
+        if (c.kind === 'flower') { photoUrls.push(null); continue }
         let photoUrl: string | null = null
 
         // Upload photo — compress first to stay under Vercel's body limit
