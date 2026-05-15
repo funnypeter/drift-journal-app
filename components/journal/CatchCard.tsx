@@ -40,8 +40,14 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     try {
       const result = await identify(base64, mimeType, profile?.net_hole_size)
       if (result.species) {
-        onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
-        setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
+        if (result.kind === 'flower') {
+          onChange({ species: result.species, length: undefined, fly: '', fly_category: '', fly_size: '' })
+          setFlyCategory('Dry Flies')
+          setAiResult(`${result.species} · ${result.confidence}% confidence`)
+        } else {
+          onChange({ species: result.species, length: result.length ? parseFloat(result.length) : undefined })
+          setAiResult(`${result.species} · ${result.length}" · ${result.confidence}% confidence`)
+        }
       } else if (result.error) {
         setAiResult(`ID failed: ${result.error}`)
       }
