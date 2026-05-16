@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Inter, Caveat } from 'next/font/google'
 import NavBarWrapper from '@/components/ui/NavBarWrapper'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import SyncRunner from '@/components/SyncRunner'
+import OfflineBadge from '@/components/ui/OfflineBadge'
 import './globals.css'
 
 const playfair = Playfair_Display({
@@ -45,6 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable} ${caveat.variable}`}>
       <body>
+        <ServiceWorkerRegister />
+        <SyncRunner />
+        <OfflineBadge />
         <div style={{ minHeight: '100vh', paddingBottom: 'var(--nav-h)' }}>
           {children}
         </div>

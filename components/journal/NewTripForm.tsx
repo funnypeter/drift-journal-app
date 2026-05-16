@@ -8,6 +8,10 @@ import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import BatchPhotoImport from './BatchPhotoImport'
 import { compressForUpload } from '@/lib/imageUtils'
+import { enqueueTrip } from '@/lib/offline/queueClient'
+import { drainQueue } from '@/lib/offline/sync'
+import { notifyQueueChanged } from '@/hooks/usePendingCount'
+import type { PendingCatch, PendingPhoto, PendingTrip } from '@/lib/offline/db'
 import type { Catch } from '@/types'
 import styles from './NewTripForm.module.css'
 
@@ -107,96 +111,185 @@ export default function NewTripForm() {
     setCatches(prev => prev.filter((_, idx) => idx !== i))
   }
 
+  async function saveOnline(tripId: string, catchIds: string[]): Promise<void> {
+    if (!location) throw new Error('Please select a location')
+    const tripTitle = title || `${location.name.split(',')[0]} Trip`
+    const tripResp = await fetch('/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: tripId,
+        title: tripTitle,
+        date,
+        location: location.name,
+        state: location.state,
+        lat: location.lat,
+        lng: location.lng,
+        notes,
+        ...conditions,
+        bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
+      }),
+    })
+    if (!tripResp.ok) {
+      const errData = await tripResp.json().catch(() => ({}))
+      throw new Error(errData.error || `Save failed (${tripResp.status})`)
+    }
+
+    const photoUrls: (string | null)[] = []
+    for (let i = 0; i < catches.length; i++) {
+      const c = catches[i]
+      if (c.kind === 'flower') { photoUrls.push(null); continue }
+      let photoUrl: string | null = null
+
+      if (c.photoFile) {
+        const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
+        const formData = new FormData()
+        formData.append('file', compressed)
+        formData.append('catchId', catchIds[i])
+        const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
+        if (!uploadResp.ok) {
+          const errData = await uploadResp.json().catch(() => ({}))
+          throw new Error(errData.error || `Photo upload failed for catch #${i + 1}`)
+        }
+        const uploadData = await uploadResp.json()
+        photoUrl = uploadData.url
+      }
+      photoUrls.push(photoUrl)
+
+      const catchResp = await fetch('/api/catches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: catchIds[i],
+          trip_id: tripId,
+          species: c.species || 'Unknown',
+          length: c.length || null,
+          fly: c.fly || null,
+          fly_category: c.fly_category,
+          fly_size: c.fly_size,
+          time_caught: c.time_caught || null,
+          date: c.date || date,
+          notes: c.notes,
+          photo_url: photoUrl,
+          sort_order: i,
+        }),
+      })
+      if (!catchResp.ok) {
+        const errData = await catchResp.json().catch(() => ({}))
+        throw new Error(errData.error || `Failed to save catch #${i + 1}`)
+      }
+    }
+
+    const heroPhotoUrl = photoUrls[heroIndex] || photoUrls.find(u => u) || null
+    if (heroPhotoUrl) {
+      await fetch(`/api/trips/${tripId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hero_photo_url: heroPhotoUrl }),
+      })
+    }
+  }
+
+  async function saveOffline(tripId: string, catchIds: string[]): Promise<void> {
+    if (!location) throw new Error('Please select a location')
+    const tripTitle = title || `${location.name.split(',')[0]} Trip`
+    const photos: PendingPhoto[] = []
+    const pendingCatches: PendingCatch[] = []
+
+    for (let i = 0; i < catches.length; i++) {
+      const c = catches[i]
+      if (c.kind === 'flower') continue
+      let photoId: string | undefined
+      if (c.photoFile) {
+        try {
+          const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
+          photoId = crypto.randomUUID()
+          photos.push({ id: photoId, blob: compressed, mimeType: compressed.type || 'image/jpeg' })
+        } catch (e) {
+          console.warn('Photo compression failed during offline queue:', e)
+        }
+      }
+      pendingCatches.push({
+        id: catchIds[i],
+        trip_id: tripId,
+        species: c.species || 'Unknown',
+        length: c.length,
+        fly: c.fly,
+        fly_category: c.fly_category,
+        fly_size: c.fly_size,
+        time_caught: c.time_caught,
+        date: c.date || date,
+        notes: c.notes,
+        sort_order: i,
+        photoId,
+        needs_identify: !!photoId,
+        syncState: 'queued',
+      })
+    }
+
+    const heroCatchId = pendingCatches[heroIndex]?.id || pendingCatches[0]?.id || null
+    const needsGeocode = /^Pinned location/.test(location.name)
+    const needsConditions = !conditions.flow && !conditions.water_temp && !conditions.air_temp
+
+    const trip: PendingTrip = {
+      id: tripId,
+      title: tripTitle,
+      date,
+      location: location.name,
+      state: location.state,
+      lat: location.lat,
+      lng: location.lng,
+      notes,
+      bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
+      usgs_site_id: conditions.usgs_site_id,
+      flow: conditions.flow,
+      water_temp: conditions.water_temp,
+      gauge_height: conditions.gauge_height,
+      air_temp: conditions.air_temp,
+      baro: conditions.baro,
+      weather: conditions.weather,
+      wind: conditions.wind,
+      moon: conditions.moon,
+      heroCatchId,
+      needs_geocode: needsGeocode,
+      needs_conditions: needsConditions,
+      syncState: 'queued',
+      createdAt: Date.now(),
+    }
+
+    await enqueueTrip({ trip, catches: pendingCatches, photos })
+    notifyQueueChanged()
+  }
+
   async function save() {
     if (!location) { setError('Please select a location'); return }
     setSaving(true)
     setError('')
 
+    const tripId = crypto.randomUUID()
+    const catchIds = catches.map(() => crypto.randomUUID())
+
+    const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false
+
+    if (isOnline) {
+      try {
+        await saveOnline(tripId, catchIds)
+        router.push('/dashboard')
+        return
+      } catch (err: any) {
+        // Network hiccup mid-save: fall through and queue offline so the user
+        // doesn't lose their data. The sync engine will replay everything
+        // (upserts are idempotent — partial progress on the server is fine).
+        console.warn('Online save failed, queuing offline:', err)
+      }
+    }
+
     try {
-      // Create trip via API route (handles auth server-side)
-      const tripTitle = title || `${location.name.split(',')[0]} Trip`
-      const tripResp = await fetch('/api/trips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: tripTitle,
-          date,
-          location: location.name,
-          state: location.state,
-          lat: location.lat,
-          lng: location.lng,
-          notes,
-          ...conditions,
-          bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
-        }),
-      })
-      if (!tripResp.ok) {
-        const errData = await tripResp.json()
-        throw new Error(errData.error || `Save failed (${tripResp.status})`)
+      await saveOffline(tripId, catchIds)
+      // Best-effort: if we're actually online, kick off a drain right away.
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        drainQueue().catch(() => {})
       }
-      const trip = await tripResp.json()
-
-      // Upload catches (skip flowers — they're identified but not logged)
-      const photoUrls: (string | null)[] = []
-      for (let i = 0; i < catches.length; i++) {
-        const c = catches[i]
-        if (c.kind === 'flower') { photoUrls.push(null); continue }
-        let photoUrl: string | null = null
-
-        // Upload photo — compress first to stay under Vercel's body limit
-        if (c.photoFile) {
-          try {
-            const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
-            const formData = new FormData()
-            formData.append('file', compressed)
-            const uploadResp = await fetch('/api/upload', { method: 'POST', body: formData })
-            if (uploadResp.ok) {
-              const uploadData = await uploadResp.json()
-              photoUrl = uploadData.url
-            } else {
-              const errData = await uploadResp.json().catch(() => ({}))
-              console.error('Upload failed:', uploadResp.status, errData)
-            }
-          } catch (e) {
-            console.error('Upload error:', e)
-          }
-        }
-        photoUrls.push(photoUrl)
-
-        // Create catch via API route
-        const catchResp = await fetch('/api/catches', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            trip_id: trip.id,
-            species: c.species || 'Unknown',
-            length: c.length || null,
-            fly: c.fly || null,
-            fly_category: c.fly_category,
-            fly_size: c.fly_size,
-            time_caught: c.time_caught || null,
-            date: c.date || date,
-            notes: c.notes,
-            photo_url: photoUrl,
-            sort_order: i,
-          }),
-        })
-        if (!catchResp.ok) {
-          const errData = await catchResp.json().catch(() => ({}))
-          throw new Error(errData.error || `Failed to save catch #${i + 1}`)
-        }
-      }
-
-      // Update hero photo — use selected hero, fallback to first photo
-      const heroPhotoUrl = photoUrls[heroIndex] || photoUrls.find(u => u) || null
-      if (heroPhotoUrl) {
-        await fetch(`/api/trips/${trip.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hero_photo_url: heroPhotoUrl }),
-        })
-      }
-
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Failed to save')

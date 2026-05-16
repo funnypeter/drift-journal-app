@@ -210,3 +210,50 @@
   text-decoration: none;
   font-family: var(--sans);
 }
+
+/* Pending sync section */
+.pendingSection {
+  margin: 18px 0 8px;
+  padding: 14px 14px 10px;
+  border: 1px dashed rgba(127, 70, 33, 0.5);
+  border-radius: 10px;
+  background: rgba(244, 196, 83, 0.06);
+}
+
+.pendingHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #7f4621;
+  font-family: var(--sans);
+  margin-bottom: 8px;
+}
+
+.pendingList { display: flex; flex-direction: column; gap: 6px; }
+
+.pendingCard {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  opacity: 0.85;
+}
+
+.pendingTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #2a2218;
+  font-family: var(--serif);
+}
+
+.pendingMeta {
+  font-size: 12px;
+  color: #6b6356;
+  margin-top: 2px;
+  font-family: var(--sans);
+}
+
+.pendingError { color: #b04a4a; font-weight: 600; }

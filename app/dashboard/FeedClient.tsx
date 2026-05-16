@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { getPendingTrips } from '@/lib/offline/queueClient'
+import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
+import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
 import styles from './feed.module.css'
 
@@ -15,6 +18,24 @@ const BG_COLORS = [
 
 export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
   const [trips] = useState(initialTrips)
+  const [pending, setPending] = useState<PendingTrip[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = () => {
+      getPendingTrips()
+        .then(p => { if (!cancelled) setPending(p) })
+        .catch(() => {})
+    }
+    refresh()
+    window.addEventListener(SYNC_COMPLETE_EVENT, refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      cancelled = true
+      window.removeEventListener(SYNC_COMPLETE_EVENT, refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [])
 
   return (
     <div className={styles.container}>
@@ -26,6 +47,32 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           <span className={styles.logoText}>Drift Journal</span>
         </div>
       </div>
+
+      {pending.length > 0 && (
+        <div className={styles.pendingSection}>
+          <div className={styles.pendingHeader}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M18.36 6.64A9 9 0 0 1 20.77 15"/>
+              <path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/>
+              <line x1="2" y1="2" x2="22" y2="22"/>
+            </svg>
+            <span>Pending sync · {pending.length}</span>
+          </div>
+          <div className={styles.pendingList}>
+            {pending.map(p => (
+              <div key={p.id} className={styles.pendingCard}>
+                <div className={styles.pendingTitle}>{p.title}</div>
+                <div className={styles.pendingMeta}>
+                  {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {' · '}
+                  {p.location?.split(',')[0] || 'No location'}
+                  {p.syncState === 'error' && <span className={styles.pendingError}> · failed, will retry</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Section title */}
       <div className={styles.header}>

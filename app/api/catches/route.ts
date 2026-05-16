@@ -7,9 +7,11 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
+  // Accept optional client-supplied id so offline replays are idempotent.
+  // RLS still enforces user_id = auth.uid().
   const { data, error } = await supabase
     .from('catches')
-    .insert({ ...body, user_id: session.user.id })
+    .upsert({ ...body, user_id: session.user.id }, { onConflict: 'id' })
     .select()
     .single()
 

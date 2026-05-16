@@ -9,6 +9,12 @@ out/
 build/
 dist/
 
+# Serwist-generated service worker bundle
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/swe-worker-*.js.map
+
 # Environment variables — NEVER commit these
 .env
 .env.local
