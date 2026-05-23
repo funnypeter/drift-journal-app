@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getPendingTrips } from '@/lib/offline/queueClient'
 import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
-import { nearestWaterway } from '@/lib/offline/geocode'
 import EditPendingTripForm from '@/components/journal/EditPendingTripForm'
 import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
@@ -74,20 +73,13 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
         if (cancelled) return
         backfillAttempted.current.add(t.id)
         try {
-          const [waterway, revResp] = await Promise.all([
-            nearestWaterway(t.lat!, t.lng!),
-            fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${t.lat}&lon=${t.lng}&format=json`,
-              { headers: { 'User-Agent': 'DriftJournal/2.0' } }
-            ).then(r => r.ok ? r.json() : null).catch(() => null),
-          ])
-          const name = waterway
-            || revResp?.address?.river
-            || revResp?.address?.natural
-            || revResp?.name
-            || null
+          const resolveResp = await fetch(
+            `/api/resolve-location?lat=${t.lat}&lng=${t.lng}`
+          )
+          if (!resolveResp.ok) continue
+          const { name, state: resolvedState } = await resolveResp.json() as { name: string | null; state: string }
           if (!name) continue
-          const state = t.state || revResp?.address?.state || ''
+          const state = t.state || resolvedState || ''
           const fullLocation = state ? `${name}, ${state}` : name
           const newTitle = /^(Pinned location|Current Location)/.test(t.title)
             ? `${name} Trip`
