@@ -21,10 +21,19 @@ interface Props {
   onExpand?: () => void
 }
 
+// Supabase returns numeric/decimal columns as strings at runtime. Without
+// this coercion, the centroid arithmetic becomes string concatenation,
+// centroid returns NaN, and Mapbox lands the map at [0, 0] — which is what
+// was making the fish marker appear in the upper-left corner regardless of
+// where it was actually pinned.
+function n(x: number | string | null | undefined): number {
+  return typeof x === 'number' ? x : Number(x ?? NaN)
+}
+
 function centroid(catches: CatchPin[], fallbackLat: number, fallbackLng: number) {
   if (!catches.length) return { lat: fallbackLat, lng: fallbackLng }
   const sum = catches.reduce(
-    (acc, c) => ({ lat: acc.lat + c.lat, lng: acc.lng + c.lng }),
+    (acc, c) => ({ lat: acc.lat + n(c.lat), lng: acc.lng + n(c.lng) }),
     { lat: 0, lng: 0 }
   )
   return { lat: sum.lat / catches.length, lng: sum.lng / catches.length }
@@ -47,8 +56,10 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
     if (!containerRef.current) return
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
+    const tripLat = n(lat)
+    const tripLng = n(lng)
     const validCatches = (catches || []).filter(c => c.lat != null && c.lng != null)
-    const focus = centroid(validCatches, lat, lng)
+    const focus = centroid(validCatches, tripLat, tripLng)
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -61,7 +72,7 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
     mapRef.current = map
 
     new mapboxgl.Marker({ color: '#1e4d43' })
-      .setLngLat([lng, lat])
+      .setLngLat([tripLng, tripLat])
       .addTo(map)
 
     const catchMarkers: mapboxgl.Marker[] = []
@@ -72,7 +83,7 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
         onCatchClickRef.current?.(c.id)
       })
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([c.lng, c.lat])
+        .setLngLat([n(c.lng), n(c.lat)])
         .addTo(map)
       catchMarkers.push(marker)
     }

@@ -19,10 +19,19 @@ interface Props {
   onCatchClick?: (catchId: string) => void
 }
 
+// Coerce because Supabase returns numeric / decimal columns as strings at
+// runtime — even though our TS types say `number`. Without Number() the
+// arithmetic below is string concatenation and the centroid comes back NaN,
+// which Mapbox silently maps to [0, 0] (the catch then "always" ends up in
+// the upper-left of the visible map).
+function n(x: number | string | null | undefined): number {
+  return typeof x === 'number' ? x : Number(x ?? NaN)
+}
+
 function centroid(catches: CatchPin[], fallbackLat: number, fallbackLng: number) {
   if (!catches.length) return { lat: fallbackLat, lng: fallbackLng }
   const sum = catches.reduce(
-    (acc, c) => ({ lat: acc.lat + c.lat, lng: acc.lng + c.lng }),
+    (acc, c) => ({ lat: acc.lat + n(c.lat), lng: acc.lng + n(c.lng) }),
     { lat: 0, lng: 0 }
   )
   return { lat: sum.lat / catches.length, lng: sum.lng / catches.length }
@@ -43,8 +52,10 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
     if (!containerRef.current) return
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
+    const tripLat = n(lat)
+    const tripLng = n(lng)
     const validCatches = (catches || []).filter(c => c.lat != null && c.lng != null)
-    const focus = centroid(validCatches, lat, lng)
+    const focus = centroid(validCatches, tripLat, tripLng)
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -58,7 +69,7 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
     new mapboxgl.Marker({ color: '#1e4d43' })
-      .setLngLat([lng, lat])
+      .setLngLat([tripLng, tripLat])
       .addTo(map)
 
     const catchMarkers: mapboxgl.Marker[] = []
@@ -69,7 +80,7 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
         onCatchClickRef.current?.(c.id)
       })
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([c.lng, c.lat])
+        .setLngLat([n(c.lng), n(c.lat)])
         .addTo(map)
       catchMarkers.push(marker)
     }
