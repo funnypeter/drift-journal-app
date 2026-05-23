@@ -8,7 +8,7 @@ import {
   updateTrip,
 } from './queueClient'
 import type { PendingCatch, PendingTrip } from './db'
-import { nearestWaterway, reverseGeocodeState } from './geocode'
+import { nearestWaterway } from './geocode'
 
 export const AUTH_EXPIRED_EVENT = 'drift-offline-auth-expired'
 export const SYNC_COMPLETE_EVENT = 'drift-offline-sync-complete'
@@ -202,23 +202,43 @@ async function syncTrip(trip: PendingTrip): Promise<void> {
   }
 
   if (trip.needs_geocode && trip.lat != null && trip.lng != null) {
-    const [name, state] = await Promise.all([
-      nearestWaterway(trip.lat, trip.lng),
-      trip.state ? Promise.resolve(trip.state) : reverseGeocodeState(trip.lat, trip.lng),
-    ])
-    const resolved = name || trip.location
-    if (resolved && resolved !== trip.location) {
-      await jsonFetch(`/api/trips/${trip.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: state ? `${resolved}, ${state}` : resolved,
-          state: state || trip.state,
-          title: trip.title === 'Pinned location' || /^Pinned location/.test(trip.title)
-            ? `${resolved.split(',')[0]} Trip`
-            : trip.title,
-        }),
-      })
+    try {
+      const [waterway, revResp] = await Promise.all([
+        nearestWaterway(trip.lat, trip.lng),
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${trip.lat}&lon=${trip.lng}&format=json`,
+          { headers: { 'User-Agent': 'DriftJournal/2.0' } }
+        ).then(r => r.ok ? r.json() : null).catch(() => null),
+      ])
+      // Mirror the online GPS fallback chain in LocationSearch — Overpass
+      // misses are common (rate limits, sparse OSM coverage), so degrade to
+      // Nominatim's river/natural/name fields rather than giving up.
+      const resolvedName = waterway
+        || revResp?.address?.river
+        || revResp?.address?.natural
+        || revResp?.name
+        || null
+      const state = trip.state || revResp?.address?.state || ''
+      if (resolvedName) {
+        const fullLocation = state ? `${resolvedName}, ${state}` : resolvedName
+        await jsonFetch(`/api/trips/${trip.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: fullLocation,
+            state: state || trip.state,
+            title: trip.title === 'Pinned location' || /^Pinned location/.test(trip.title)
+              ? `${resolvedName} Trip`
+              : trip.title,
+          }),
+        })
+      } else {
+        console.warn('[sync] geocode found no waterway or address name for', trip.lat, trip.lng)
+      }
+    } catch (err) {
+      // Non-fatal: leave the trip on the server with its placeholder name
+      // rather than trapping it in the queue. User can edit via the UI.
+      console.warn('[sync] geocode PATCH failed:', err)
     }
   }
 

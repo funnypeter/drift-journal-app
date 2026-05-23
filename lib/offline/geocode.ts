@@ -36,16 +36,3 @@ export async function nearestWaterway(lat: number, lng: number): Promise<string 
   return null
 }
 
-export async function reverseGeocodeState(lat: number, lng: number): Promise<string> {
-  try {
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { 'User-Agent': 'DriftJournal/2.0' } }
-    )
-    if (!resp.ok) return ''
-    const data = await resp.json()
-    return data?.address?.state || ''
-  } catch {
-    return ''
-  }
-}
