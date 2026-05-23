@@ -17,12 +17,17 @@ const FISH_SVG = `
 </svg>`
 
 export function makeCatchMarkerEl(species?: string): HTMLDivElement {
+  // Outer hit target — transparent ring around the visible marker so finger
+  // taps within ~44px land on the element instead of falling through to the
+  // map canvas below. Without this, a slightly-off tap was hitting the
+  // map's wrap and triggering the mini-map's "expand" gesture.
   const wrap = document.createElement('div')
   wrap.style.cursor = 'pointer'
   wrap.style.display = 'flex'
   wrap.style.flexDirection = 'column'
   wrap.style.alignItems = 'center'
-  // Slight pop on hover so the marker reads as interactive.
+  wrap.style.padding = '10px'
+  wrap.style.margin = '-10px'
   wrap.style.transition = 'transform 120ms ease'
   wrap.addEventListener('pointerenter', () => { wrap.style.transform = 'scale(1.15)' })
   wrap.addEventListener('pointerleave', () => { wrap.style.transform = 'scale(1)' })
@@ -30,7 +35,7 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   const bubble = document.createElement('div')
   bubble.style.background = '#1e4d43'
   bubble.style.borderRadius = '999px'
-  bubble.style.padding = '4px 4px 2px'
+  bubble.style.padding = '5px 5px 3px'
   bubble.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)'
   bubble.style.border = '2px solid white'
   bubble.style.display = 'flex'
@@ -38,13 +43,12 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   bubble.style.justifyContent = 'center'
   bubble.innerHTML = FISH_SVG
 
-  // Tail/pin so the marker reads as a placed pin rather than a free icon.
   const tail = document.createElement('div')
   tail.style.width = '0'
   tail.style.height = '0'
-  tail.style.borderLeft = '5px solid transparent'
-  tail.style.borderRight = '5px solid transparent'
-  tail.style.borderTop = '7px solid #1e4d43'
+  tail.style.borderLeft = '6px solid transparent'
+  tail.style.borderRight = '6px solid transparent'
+  tail.style.borderTop = '8px solid #1e4d43'
   tail.style.marginTop = '-1px'
 
   wrap.appendChild(bubble)

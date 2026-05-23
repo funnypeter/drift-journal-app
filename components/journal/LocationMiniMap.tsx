@@ -18,9 +18,10 @@ interface Props {
   lng: number
   catches?: CatchPin[]
   onCatchClick?: (catchId: string) => void
+  onExpand?: () => void
 }
 
-export default function LocationMiniMap({ lat, lng, catches, onCatchClick }: Props) {
+export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExpand }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
 
@@ -71,5 +72,24 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick }: Pro
     }
   }, [lat, lng, catches, onCatchClick])
 
-  return <div ref={containerRef} className={styles.map} />
+  return (
+    <div className={styles.wrap}>
+      <div ref={containerRef} className={styles.map} />
+      {onExpand && (
+        <button
+          type="button"
+          aria-label="Expand map"
+          onClick={(e) => { e.stopPropagation(); onExpand() }}
+          className={styles.expandBtn}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  )
 }

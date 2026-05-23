@@ -89,12 +89,13 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
       {/* Map */}
       {trip.lat && trip.lng && (
-        <div className={styles.mapWrap} onClick={() => setShowFullMap(true)} style={{ cursor: 'pointer' }}>
+        <div className={styles.mapWrap}>
           <LocationMiniMap
             lat={trip.lat}
             lng={trip.lng}
             catches={pinnedCatches.map(c => ({ id: c.id, lat: c.lat, lng: c.lng, species: c.species }))}
             onCatchClick={openCatchById}
+            onExpand={() => setShowFullMap(true)}
           />
         </div>
       )}
