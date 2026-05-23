@@ -241,11 +241,24 @@
   background: rgba(255, 255, 255, 0.6);
   opacity: 0.85;
   display: block;
+  width: 100%;
+  text-align: left;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
+  border: none;
+  font: inherit;
 }
 .pendingCard:active { opacity: 0.65; }
+
+.editOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-default, #f5efe2);
+  z-index: 1000;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .pendingTitle {
   font-weight: 600;

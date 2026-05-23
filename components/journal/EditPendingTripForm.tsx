@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter, useSearchParams, notFound } from 'next/navigation'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
@@ -39,10 +38,12 @@ interface CatchDraft {
   _isNew?: boolean
 }
 
-export default function EditPendingTripForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const pendingId = searchParams?.get('id') || ''
+interface Props {
+  pendingId: string
+  onClose: () => void
+}
+
+export default function EditPendingTripForm({ pendingId, onClose }: Props) {
   const [loaded, setLoaded] = useState(false)
   const [missing, setMissing] = useState(false)
   const [trip, setTrip] = useState<PendingTrip | null>(null)
@@ -239,7 +240,7 @@ export default function EditPendingTripForm() {
       await updateTrip(updatedTrip)
 
       notifyQueueChanged()
-      router.push('/dashboard')
+      onClose()
     } catch (err: any) {
       setError(err.message || 'Save failed')
       setSaving(false)
@@ -252,14 +253,28 @@ export default function EditPendingTripForm() {
     try {
       await deleteTripCascade(pendingId)
       notifyQueueChanged()
-      router.push('/dashboard')
+      onClose()
     } catch (err: any) {
       setError(err.message || 'Delete failed')
       setDeleting(false)
     }
   }
 
-  if (missing) return notFound()
+  if (missing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.topBar}>
+          <button onClick={onClose} className={styles.backBtn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div className={styles.stepLabel}>Pending Sync</div>
+        <p style={{ padding: '2rem 0' }}>This pending trip is no longer in the queue (it may have already synced).</p>
+      </div>
+    )
+  }
   if (!loaded) {
     return (
       <div className={styles.container}>
@@ -274,7 +289,7 @@ export default function EditPendingTripForm() {
   return (
     <div className={styles.container}>
       <div className={styles.topBar}>
-        <button onClick={() => router.back()} className={styles.backBtn}>
+        <button onClick={onClose} className={styles.backBtn}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
             <path d="M15 18l-6-6 6-6"/>
           </svg>

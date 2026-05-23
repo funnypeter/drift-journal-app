@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { getPendingTrips } from '@/lib/offline/queueClient'
 import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
 import { nearestWaterway } from '@/lib/offline/geocode'
+import EditPendingTripForm from '@/components/journal/EditPendingTripForm'
 import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
 import styles from './feed.module.css'
@@ -24,26 +26,40 @@ const BG_COLORS = [
 ]
 
 export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
+  const router = useRouter()
   const [trips, setTrips] = useState(initialTrips)
   const [pending, setPending] = useState<PendingTrip[]>([])
+  const [editingPendingId, setEditingPendingId] = useState<string | null>(null)
   const backfillAttempted = useRef(new Set<string>())
+
+  // Keep local trips in sync if the server-rendered list changes (e.g. after
+  // router.refresh() fires below). Without this, fresh-from-server data
+  // would never replace stale state once the user has been on the page.
+  useEffect(() => { setTrips(initialTrips) }, [initialTrips])
 
   useEffect(() => {
     let cancelled = false
-    const refresh = () => {
+    const refreshPending = () => {
       getPendingTrips()
         .then(p => { if (!cancelled) setPending(p) })
         .catch(() => {})
     }
-    refresh()
-    window.addEventListener(SYNC_COMPLETE_EVENT, refresh)
-    window.addEventListener('focus', refresh)
+    const onSyncComplete = () => {
+      refreshPending()
+      // Re-fetch the server feed so the just-synced trip lands in the list
+      // without a manual reload, which also gives the placeholder-name
+      // backfill effect below a chance to resolve its location.
+      router.refresh()
+    }
+    refreshPending()
+    window.addEventListener(SYNC_COMPLETE_EVENT, onSyncComplete)
+    window.addEventListener('focus', refreshPending)
     return () => {
       cancelled = true
-      window.removeEventListener(SYNC_COMPLETE_EVENT, refresh)
-      window.removeEventListener('focus', refresh)
+      window.removeEventListener(SYNC_COMPLETE_EVENT, onSyncComplete)
+      window.removeEventListener('focus', refreshPending)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return
@@ -94,6 +110,14 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
 
   return (
     <div className={styles.container}>
+      {editingPendingId && (
+        <div className={styles.editOverlay}>
+          <EditPendingTripForm
+            pendingId={editingPendingId}
+            onClose={() => setEditingPendingId(null)}
+          />
+        </div>
+      )}
       {/* App header */}
       <div className={styles.appHeader}>
         <div className={styles.logoRow}>
@@ -115,7 +139,12 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           </div>
           <div className={styles.pendingList}>
             {pending.map(p => (
-              <Link key={p.id} href={`/trips/pending/edit?id=${p.id}`} className={styles.pendingCard}>
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setEditingPendingId(p.id)}
+                className={styles.pendingCard}
+              >
                 <div className={styles.pendingTitle}>{p.title}</div>
                 <div className={styles.pendingMeta}>
                   {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -126,7 +155,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                 {p.syncState === 'error' && p.lastError && (
                   <div className={styles.pendingErrorDetail}>{p.lastError}</div>
                 )}
-              </Link>
+              </button>
             ))}
           </div>
         </div>
