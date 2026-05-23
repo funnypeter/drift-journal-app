@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { getPendingTrips } from '@/lib/offline/queueClient'
 import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
+import { nearestWaterway } from '@/lib/offline/geocode'
 import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
 import styles from './feed.module.css'
+
+// Trips that synced with a placeholder name (because the geocoder failed at
+// creation time, or an older build's sync engine couldn't recover) need a
+// chance to resolve on a later visit — once the queue entry is deleted, the
+// sync engine never revisits them.
+const PLACEHOLDER_RE = /^(Pinned location|Current Location)/
 
 const BG_COLORS = [
   'linear-gradient(160deg,#374a3a,#1a2e1c)',
@@ -17,8 +24,9 @@ const BG_COLORS = [
 ]
 
 export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
-  const [trips] = useState(initialTrips)
+  const [trips, setTrips] = useState(initialTrips)
   const [pending, setPending] = useState<PendingTrip[]>([])
+  const backfillAttempted = useRef(new Set<string>())
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +44,53 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
       window.removeEventListener('focus', refresh)
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+    let cancelled = false
+    ;(async () => {
+      const candidates = trips.filter(t =>
+        t.location && PLACEHOLDER_RE.test(t.location) &&
+        t.lat != null && t.lng != null &&
+        !backfillAttempted.current.has(t.id)
+      ).slice(0, 5)
+      for (const t of candidates) {
+        if (cancelled) return
+        backfillAttempted.current.add(t.id)
+        try {
+          const [waterway, revResp] = await Promise.all([
+            nearestWaterway(t.lat!, t.lng!),
+            fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${t.lat}&lon=${t.lng}&format=json`,
+              { headers: { 'User-Agent': 'DriftJournal/2.0' } }
+            ).then(r => r.ok ? r.json() : null).catch(() => null),
+          ])
+          const name = waterway
+            || revResp?.address?.river
+            || revResp?.address?.natural
+            || revResp?.name
+            || null
+          if (!name) continue
+          const state = t.state || revResp?.address?.state || ''
+          const fullLocation = state ? `${name}, ${state}` : name
+          const newTitle = /^(Pinned location|Current Location)/.test(t.title)
+            ? `${name} Trip`
+            : t.title
+          const resp = await fetch(`/api/trips/${t.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location: fullLocation, state, title: newTitle }),
+          })
+          if (resp.ok && !cancelled) {
+            setTrips(prev => prev.map(x =>
+              x.id === t.id ? { ...x, location: fullLocation, state, title: newTitle } : x
+            ))
+          }
+        } catch { /* best-effort */ }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [trips])
 
   return (
     <div className={styles.container}>
@@ -60,7 +115,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           </div>
           <div className={styles.pendingList}>
             {pending.map(p => (
-              <Link key={p.id} href={`/trips/pending/${p.id}/edit`} className={styles.pendingCard}>
+              <Link key={p.id} href={`/trips/pending/edit?id=${p.id}`} className={styles.pendingCard}>
                 <div className={styles.pendingTitle}>{p.title}</div>
                 <div className={styles.pendingMeta}>
                   {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

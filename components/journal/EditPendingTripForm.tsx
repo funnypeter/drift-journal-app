@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter, notFound } from 'next/navigation'
+import { useRouter, useSearchParams, notFound } from 'next/navigation'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
@@ -39,8 +39,10 @@ interface CatchDraft {
   _isNew?: boolean
 }
 
-export default function EditPendingTripForm({ pendingId }: { pendingId: string }) {
+export default function EditPendingTripForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pendingId = searchParams?.get('id') || ''
   const [loaded, setLoaded] = useState(false)
   const [missing, setMissing] = useState(false)
   const [trip, setTrip] = useState<PendingTrip | null>(null)
@@ -63,6 +65,7 @@ export default function EditPendingTripForm({ pendingId }: { pendingId: string }
   const objectUrls = useRef<string[]>([])
 
   useEffect(() => {
+    if (!pendingId) { setMissing(true); return }
     let cancelled = false
     ;(async () => {
       try {
