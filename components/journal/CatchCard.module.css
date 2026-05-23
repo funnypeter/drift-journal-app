@@ -300,3 +300,56 @@
   outline: none;
   width: calc(100% - 28px);
 }
+
+/* Catch pin */
+.pinRow {
+  margin: 0 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pinBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #5a544a);
+  font-size: 12px;
+  font-family: var(--sans);
+  cursor: pointer;
+}
+.pinBtn:hover { border-style: solid; color: var(--text, #2a2218); }
+.pinBtn:disabled { opacity: 0.6; cursor: default; }
+
+.pinDisplay {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(30, 77, 67, 0.08);
+  font-size: 12px;
+  font-family: var(--mono, monospace);
+  color: var(--text, #2a2218);
+  align-self: flex-start;
+}
+.pinCoords { font-family: var(--mono, monospace); }
+.pinClear {
+  border: none;
+  background: transparent;
+  color: #a33;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  font-family: var(--sans);
+}
+.pinError {
+  font-size: 11px;
+  color: #b04a4a;
+  font-family: var(--sans);
+}

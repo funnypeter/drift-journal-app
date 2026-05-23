@@ -31,6 +31,14 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   const [showFullMap, setShowFullMap] = useState(false)
 
   const catches = trip.catches || []
+  // Only catches with a dropped pin get markers — keeps the map uncluttered
+  // for legacy catches with no GPS recorded.
+  const pinnedCatches = catches.filter(c => c.lat != null && c.lng != null) as Array<typeof catches[number] & { lat: number; lng: number }>
+
+  function openCatchById(id: string) {
+    const c = catches.find(x => x.id === id)
+    if (c) setExpandedCatch(c)
+  }
 
   async function handleDelete() {
     setDeleting(true)
@@ -82,7 +90,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
       {/* Map */}
       {trip.lat && trip.lng && (
         <div className={styles.mapWrap} onClick={() => setShowFullMap(true)} style={{ cursor: 'pointer' }}>
-          <LocationMiniMap lat={trip.lat} lng={trip.lng} />
+          <LocationMiniMap
+            lat={trip.lat}
+            lng={trip.lng}
+            catches={pinnedCatches.map(c => ({ id: c.id, lat: c.lat, lng: c.lng, species: c.species }))}
+            onCatchClick={openCatchById}
+          />
         </div>
       )}
 
@@ -204,7 +217,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
               </svg>
             </button>
             <div className={styles.fullMapTitle}>{trip.location}</div>
-            <FullMap lat={trip.lat} lng={trip.lng} />
+            <FullMap
+              lat={trip.lat}
+              lng={trip.lng}
+              catches={pinnedCatches.map(c => ({ id: c.id, lat: c.lat, lng: c.lng, species: c.species }))}
+              onCatchClick={(id) => { setShowFullMap(false); openCatchById(id) }}
+            />
           </div>
         </div>
       )}

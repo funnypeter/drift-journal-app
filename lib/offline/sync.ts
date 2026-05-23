@@ -79,6 +79,8 @@ async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch>
       notes: c.notes,
       photo_url: photoUrl,
       sort_order: c.sort_order,
+      lat: c.lat ?? null,
+      lng: c.lng ?? null,
     }),
   })
   if (!upResp.ok) throw new Error(`catch upsert failed (${upResp.status})`)

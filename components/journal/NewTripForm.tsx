@@ -172,6 +172,8 @@ export default function NewTripForm() {
           notes: c.notes,
           photo_url: photoUrl,
           sort_order: i,
+          lat: c.lat ?? null,
+          lng: c.lng ?? null,
         }),
       })
       if (!catchResp.ok) {
@@ -229,6 +231,8 @@ export default function NewTripForm() {
         date: c.date || date,
         notes: c.notes,
         sort_order: i,
+        lat: c.lat,
+        lng: c.lng,
         photoId,
         needs_identify: !!photoId,
         syncState: 'queued',
