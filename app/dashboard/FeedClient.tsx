@@ -1,9 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { getPendingTrips } from '@/lib/offline/queueClient'
+import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
+import EditPendingTripForm from '@/components/journal/EditPendingTripForm'
+import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
 import styles from './feed.module.css'
+
+// Trips that synced with a placeholder name (because the geocoder failed at
+// creation time, or an older build's sync engine couldn't recover) need a
+// chance to resolve on a later visit — once the queue entry is deleted, the
+// sync engine never revisits them.
+const PLACEHOLDER_RE = /^(Pinned location|Current Location)/
 
 const BG_COLORS = [
   'linear-gradient(160deg,#374a3a,#1a2e1c)',
@@ -14,10 +25,91 @@ const BG_COLORS = [
 ]
 
 export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
-  const [trips] = useState(initialTrips)
+  const router = useRouter()
+  const [trips, setTrips] = useState(initialTrips)
+  const [pending, setPending] = useState<PendingTrip[]>([])
+  const [editingPendingId, setEditingPendingId] = useState<string | null>(null)
+  const backfillAttempted = useRef(new Set<string>())
+
+  // Keep local trips in sync if the server-rendered list changes (e.g. after
+  // router.refresh() fires below). Without this, fresh-from-server data
+  // would never replace stale state once the user has been on the page.
+  useEffect(() => { setTrips(initialTrips) }, [initialTrips])
+
+  useEffect(() => {
+    let cancelled = false
+    const refreshPending = () => {
+      getPendingTrips()
+        .then(p => { if (!cancelled) setPending(p) })
+        .catch(() => {})
+    }
+    const onSyncComplete = () => {
+      refreshPending()
+      // Re-fetch the server feed so the just-synced trip lands in the list
+      // without a manual reload, which also gives the placeholder-name
+      // backfill effect below a chance to resolve its location.
+      router.refresh()
+    }
+    refreshPending()
+    window.addEventListener(SYNC_COMPLETE_EVENT, onSyncComplete)
+    window.addEventListener('focus', refreshPending)
+    return () => {
+      cancelled = true
+      window.removeEventListener(SYNC_COMPLETE_EVENT, onSyncComplete)
+      window.removeEventListener('focus', refreshPending)
+    }
+  }, [router])
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+    let cancelled = false
+    ;(async () => {
+      const candidates = trips.filter(t =>
+        t.location && PLACEHOLDER_RE.test(t.location) &&
+        t.lat != null && t.lng != null &&
+        !backfillAttempted.current.has(t.id)
+      ).slice(0, 5)
+      for (const t of candidates) {
+        if (cancelled) return
+        backfillAttempted.current.add(t.id)
+        try {
+          const resolveResp = await fetch(
+            `/api/resolve-location?lat=${t.lat}&lng=${t.lng}`
+          )
+          if (!resolveResp.ok) continue
+          const { name, state: resolvedState } = await resolveResp.json() as { name: string | null; state: string }
+          if (!name) continue
+          const state = t.state || resolvedState || ''
+          const fullLocation = state ? `${name}, ${state}` : name
+          const newTitle = /^(Pinned location|Current Location)/.test(t.title)
+            ? `${name} Trip`
+            : t.title
+          const resp = await fetch(`/api/trips/${t.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location: fullLocation, state, title: newTitle }),
+          })
+          if (resp.ok && !cancelled) {
+            setTrips(prev => prev.map(x =>
+              x.id === t.id ? { ...x, location: fullLocation, state, title: newTitle } : x
+            ))
+          }
+        } catch { /* best-effort */ }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [trips])
 
   return (
     <div className={styles.container}>
+      {editingPendingId && (
+        <div className={styles.editOverlay}>
+          <EditPendingTripForm
+            pendingId={editingPendingId}
+            onClose={() => setEditingPendingId(null)}
+          />
+        </div>
+      )}
       {/* App header */}
       <div className={styles.appHeader}>
         <div className={styles.logoRow}>
@@ -26,6 +118,40 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           <span className={styles.logoText}>Drift Journal</span>
         </div>
       </div>
+
+      {pending.length > 0 && (
+        <div className={styles.pendingSection}>
+          <div className={styles.pendingHeader}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M18.36 6.64A9 9 0 0 1 20.77 15"/>
+              <path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/>
+              <line x1="2" y1="2" x2="22" y2="22"/>
+            </svg>
+            <span>Pending sync · {pending.length}</span>
+          </div>
+          <div className={styles.pendingList}>
+            {pending.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setEditingPendingId(p.id)}
+                className={styles.pendingCard}
+              >
+                <div className={styles.pendingTitle}>{p.title}</div>
+                <div className={styles.pendingMeta}>
+                  {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {' · '}
+                  {p.location?.split(',')[0] || 'No location'}
+                  {p.syncState === 'error' && <span className={styles.pendingError}> · failed, will retry</span>}
+                </div>
+                {p.syncState === 'error' && p.lastError && (
+                  <div className={styles.pendingErrorDetail}>{p.lastError}</div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Section title */}
       <div className={styles.header}>

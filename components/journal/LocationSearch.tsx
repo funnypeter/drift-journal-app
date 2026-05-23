@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { nearestWaterway } from '@/lib/offline/geocode'
 import styles from './LocationSearch.module.css'
 
 interface LocationResult {
@@ -47,45 +48,18 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
     setLoading(false)
   }
 
-  async function nearestWaterway(lat: number, lng: number): Promise<string | null> {
-    // Search up to ~5km for a named river/stream/canal/lake; pick the closest.
-    const radii = [1500, 5000]
-    for (const r of radii) {
-      try {
-        const q = `[out:json][timeout:15];(way(around:${r},${lat},${lng})["waterway"~"river|stream|canal|tidal_channel"]["name"];way(around:${r},${lat},${lng})["natural"="water"]["name"];relation(around:${r},${lat},${lng})["natural"="water"]["name"];);out tags center;`
-        const resp = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(q),
-        })
-        if (!resp.ok) continue
-        const data = await resp.json()
-        const elements: any[] = data.elements || []
-        if (!elements.length) continue
-        const withDist = elements
-          .map(e => {
-            const c = e.center || { lat: e.lat, lon: e.lon }
-            if (typeof c.lat !== 'number' || typeof c.lon !== 'number') return null
-            const dLat = (c.lat - lat) * 111000
-            const dLng = (c.lon - lng) * 111000 * Math.cos((lat * Math.PI) / 180)
-            const dist = Math.sqrt(dLat * dLat + dLng * dLng)
-            // Prefer flowing water (rivers/streams) over generic lakes when close-ish
-            const isFlowing = e.tags?.waterway && e.tags.waterway !== 'tidal_channel'
-            return { name: e.tags?.name as string, dist, score: dist - (isFlowing ? 100 : 0) }
-          })
-          .filter((x): x is { name: string; dist: number; score: number } => !!x && !!x.name)
-          .sort((a, b) => a.score - b.score)
-        if (withDist[0]) return withDist[0].name
-      } catch {}
-    }
-    return null
-  }
-
   async function useGPS() {
     setGpsLoading(true)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords
+        // Offline: save coords with a placeholder name. The sync engine will
+        // resolve the nearest waterway when the trip is replayed.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          onSelect({ name: 'Pinned location', lat, lng, state: '' })
+          setGpsLoading(false)
+          return
+        }
         try {
           const [waterway, revResp] = await Promise.all([
             nearestWaterway(lat, lng),
@@ -102,7 +76,7 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
             || 'Current Location'
           onSelect({ name: name + (state ? `, ${state}` : ''), lat, lng, state })
         } catch {
-          onSelect({ name: 'Current Location', lat, lng, state: '' })
+          onSelect({ name: 'Pinned location', lat, lng, state: '' })
         }
         setGpsLoading(false)
       },
