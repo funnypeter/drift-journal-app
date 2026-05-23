@@ -117,6 +117,13 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
+      {/* Temporary build indicator — remove after the map pin debug is settled.
+          If this reads "build v3", you're on the latest code; if it doesn't show
+          at all, the tab is serving an older bundle. */}
+      <div style={{ fontSize: 11, color: '#888', textAlign: 'right', marginTop: 4, fontFamily: 'monospace' }}>
+        build v3 — {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local'}
+      </div>
+
       {/* Conditions grid */}
       <div className={styles.condGrid}>
         <Cond label="Water Flow" value={trip.flow ? `${trip.flow} cfs` : 'N/A'} />

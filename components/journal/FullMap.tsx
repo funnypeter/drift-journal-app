@@ -66,6 +66,26 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
     })
     mapRef.current = map
 
+    // Belt-and-suspenders: also force the center via jumpTo on style load.
+    // The constructor's `center` is meant to be respected, but if some
+    // Mapbox quirk or container-size race makes it land elsewhere, this
+    // catches it.
+    map.once('load', () => {
+      if (validCatches.length > 0) {
+        map.jumpTo({ center: [focus.lng, focus.lat], zoom: 14 })
+      }
+    })
+
+    // Debug — shows up in the browser console so we can verify the new code
+    // is actually running and centroid math is producing real numbers.
+    if (typeof window !== 'undefined') {
+      console.log('[FullMap]', {
+        focus,
+        tripLat, tripLng,
+        validCatches: validCatches.map(c => ({ id: c.id, lat: c.lat, lng: c.lng, typeofLat: typeof c.lat })),
+      })
+    }
+
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
     new mapboxgl.Marker({ color: '#1e4d43' })

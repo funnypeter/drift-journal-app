@@ -71,6 +71,20 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
     })
     mapRef.current = map
 
+    map.once('load', () => {
+      if (validCatches.length > 0) {
+        map.jumpTo({ center: [focus.lng, focus.lat], zoom: 13 })
+      }
+    })
+
+    if (typeof window !== 'undefined') {
+      console.log('[LocationMiniMap]', {
+        focus,
+        tripLat, tripLng,
+        validCatches: validCatches.map(c => ({ id: c.id, lat: c.lat, lng: c.lng, typeofLat: typeof c.lat })),
+      })
+    }
+
     new mapboxgl.Marker({ color: '#1e4d43' })
       .setLngLat([tripLng, tripLat])
       .addTo(map)
