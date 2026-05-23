@@ -44,7 +44,17 @@ async function syncCatchPhoto(c: PendingCatch): Promise<string | null> {
   fd.append('file', file)
   fd.append('catchId', c.id)
   const resp = await jsonFetch('/api/upload', { method: 'POST', body: fd })
-  if (!resp.ok) throw new Error(`upload failed (${resp.status})`)
+  if (!resp.ok) {
+    // Pull the server-side reason so the user-visible lastError tells us
+    // what Supabase actually rejected (mime, size, bucket, RLS) instead of
+    // just the HTTP code.
+    let detail = ''
+    try {
+      const body = await resp.json()
+      detail = body?.error ? `: ${body.error}` : ''
+    } catch { /* non-JSON body */ }
+    throw new Error(`upload failed (${resp.status}) [size=${photo.blob.size} type=${photo.mimeType}]${detail}`)
+  }
   const data = await resp.json()
   c.serverPhotoUrl = data.url ?? null
   await updateCatch(c)
