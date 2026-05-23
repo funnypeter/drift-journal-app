@@ -21,10 +21,19 @@ interface Props {
   onExpand?: () => void
 }
 
-// Initialize Mapbox once per mount and route the click callback through a
-// ref. Same reasoning as FullMap — putting onCatchClick in the effect deps
-// caused fitBounds to re-fire whenever the parent's state changed, which
-// looked like the fish marker "jumping" back to the bounds-fit corner.
+function centroid(catches: CatchPin[], fallbackLat: number, fallbackLng: number) {
+  if (!catches.length) return { lat: fallbackLat, lng: fallbackLng }
+  const sum = catches.reduce(
+    (acc, c) => ({ lat: acc.lat + c.lat, lng: acc.lng + c.lng }),
+    { lat: 0, lng: 0 }
+  )
+  return { lat: sum.lat / catches.length, lng: sum.lng / catches.length }
+}
+
+// Mounts once; effect deps are empty, callbacks read from refs. The map
+// centers on the catches centroid (or the trip if there are no pins). This
+// keeps the fish marker visually centered rather than tucked into a corner
+// the way fitBounds did, and avoids any camera reset on click.
 export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExpand }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -38,11 +47,14 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
     if (!containerRef.current) return
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
+    const validCatches = (catches || []).filter(c => c.lat != null && c.lng != null)
+    const focus = centroid(validCatches, lat, lng)
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [lng, lat],
-      zoom: 12,
+      center: [focus.lng, focus.lat],
+      zoom: validCatches.length > 0 ? 13 : 12,
       interactive: false,
       attributionControl: false,
     })
@@ -53,24 +65,16 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
       .addTo(map)
 
     const catchMarkers: mapboxgl.Marker[] = []
-    if (catches && catches.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds([lng, lat], [lng, lat])
-      for (const c of catches) {
-        if (c.lat == null || c.lng == null) continue
-        const el = makeCatchMarkerEl(c.species)
-        el.addEventListener('click', (e) => {
-          e.stopPropagation()
-          onCatchClickRef.current?.(c.id)
-        })
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([c.lng, c.lat])
-          .addTo(map)
-        catchMarkers.push(marker)
-        bounds.extend([c.lng, c.lat])
-      }
-      const applyFit = () => map.fitBounds(bounds, { padding: 50, maxZoom: 14, duration: 0 })
-      if (map.isStyleLoaded()) applyFit()
-      else map.once('load', applyFit)
+    for (const c of validCatches) {
+      const el = makeCatchMarkerEl(c.species)
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
+        onCatchClickRef.current?.(c.id)
+      })
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([c.lng, c.lat])
+        .addTo(map)
+      catchMarkers.push(marker)
     }
 
     return () => {

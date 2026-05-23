@@ -19,12 +19,19 @@ interface Props {
   onCatchClick?: (catchId: string) => void
 }
 
-// Initialize Mapbox exactly once per mount. The catch click callback is read
-// through a ref each time a marker is tapped so we don't have to put it in the
-// effect's dependency array — putting it there caused fitBounds to re-fire
-// whenever the parent re-rendered (e.g. when setExpandedCatch updated state),
-// which yanked the camera back to its bounds-fit framing right under the
-// user's finger.
+function centroid(catches: CatchPin[], fallbackLat: number, fallbackLng: number) {
+  if (!catches.length) return { lat: fallbackLat, lng: fallbackLng }
+  const sum = catches.reduce(
+    (acc, c) => ({ lat: acc.lat + c.lat, lng: acc.lng + c.lng }),
+    { lat: 0, lng: 0 }
+  )
+  return { lat: sum.lat / catches.length, lng: sum.lng / catches.length }
+}
+
+// Center on the catches (not on a bounds-fit framing) so the fish marker is
+// the focal point. The trip pin shows wherever it falls — usually nearby. No
+// fitBounds, no edge-jamming, and crucially nothing in the effect dep array
+// that could re-fire and yank the camera while the user is interacting.
 export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -36,11 +43,14 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
     if (!containerRef.current) return
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
+    const validCatches = (catches || []).filter(c => c.lat != null && c.lng != null)
+    const focus = centroid(validCatches, lat, lng)
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [lng, lat],
-      zoom: 13,
+      center: [focus.lng, focus.lat],
+      zoom: validCatches.length > 0 ? 14 : 13,
       attributionControl: false,
     })
     mapRef.current = map
@@ -52,24 +62,16 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
       .addTo(map)
 
     const catchMarkers: mapboxgl.Marker[] = []
-    if (catches && catches.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds([lng, lat], [lng, lat])
-      for (const c of catches) {
-        if (c.lat == null || c.lng == null) continue
-        const el = makeCatchMarkerEl(c.species)
-        el.addEventListener('click', (e) => {
-          e.stopPropagation()
-          onCatchClickRef.current?.(c.id)
-        })
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([c.lng, c.lat])
-          .addTo(map)
-        catchMarkers.push(marker)
-        bounds.extend([c.lng, c.lat])
-      }
-      const applyFit = () => map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 0 })
-      if (map.isStyleLoaded()) applyFit()
-      else map.once('load', applyFit)
+    for (const c of validCatches) {
+      const el = makeCatchMarkerEl(c.species)
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
+        onCatchClickRef.current?.(c.id)
+      })
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([c.lng, c.lat])
+        .addTo(map)
+      catchMarkers.push(marker)
     }
 
     return () => {
