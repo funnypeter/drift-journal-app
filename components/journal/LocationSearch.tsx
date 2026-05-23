@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { nearestWaterway } from '@/lib/offline/geocode'
 import styles from './LocationSearch.module.css'
 
 interface LocationResult {
@@ -61,20 +60,27 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
           return
         }
         try {
-          const [waterway, revResp] = await Promise.all([
-            nearestWaterway(lat, lng),
-            fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-              { headers: { 'User-Agent': 'DriftJournal/2.0' } }
-            ).then(r => r.json()).catch(() => null),
-          ])
-          const state = revResp?.address?.state || ''
-          const name = waterway
-            || revResp?.address?.river
-            || revResp?.address?.natural
-            || revResp?.name
-            || 'Current Location'
-          onSelect({ name: name + (state ? `, ${state}` : ''), lat, lng, state })
+          // Use the shared server-side resolver — Overpass + Mapbox +
+          // Nominatim with proper ranking and retries. The previous
+          // browser-side chain was unreliable on mobile networks and was
+          // landing on "Current Location" when Overpass returned empty.
+          const resp = await fetch(`/api/resolve-location?lat=${lat}&lng=${lng}`)
+          if (resp.ok) {
+            const { name, state } = await resp.json() as { name: string | null; state: string }
+            if (name) {
+              onSelect({
+                name: state ? `${name}, ${state}` : name,
+                lat, lng,
+                state: state || '',
+              })
+              setGpsLoading(false)
+              return
+            }
+          }
+          // Resolver came back empty — degrade to "Pinned location" so the
+          // sync engine / dashboard backfill gets another shot rather than
+          // baking a useless "Current Location" string into the trip.
+          onSelect({ name: 'Pinned location', lat, lng, state: '' })
         } catch {
           onSelect({ name: 'Pinned location', lat, lng, state: '' })
         }
