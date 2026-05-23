@@ -262,3 +262,13 @@
 }
 
 .pendingError { color: #b04a4a; font-weight: 600; }
+.pendingErrorDetail {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  color: #8a3a3a;
+  margin-top: 4px;
+  word-break: break-word;
+  background: rgba(176, 74, 74, 0.08);
+  padding: 4px 6px;
+  border-radius: 4px;
+}

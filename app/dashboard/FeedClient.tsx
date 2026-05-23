@@ -123,6 +123,9 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                   {p.location?.split(',')[0] || 'No location'}
                   {p.syncState === 'error' && <span className={styles.pendingError}> · failed, will retry</span>}
                 </div>
+                {p.syncState === 'error' && p.lastError && (
+                  <div className={styles.pendingErrorDetail}>{p.lastError}</div>
+                )}
               </Link>
             ))}
           </div>
