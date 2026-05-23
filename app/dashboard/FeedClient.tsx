@@ -60,7 +60,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
           </div>
           <div className={styles.pendingList}>
             {pending.map(p => (
-              <div key={p.id} className={styles.pendingCard}>
+              <Link key={p.id} href={`/trips/pending/${p.id}/edit`} className={styles.pendingCard}>
                 <div className={styles.pendingTitle}>{p.title}</div>
                 <div className={styles.pendingMeta}>
                   {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -68,7 +68,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                   {p.location?.split(',')[0] || 'No location'}
                   {p.syncState === 'error' && <span className={styles.pendingError}> · failed, will retry</span>}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
