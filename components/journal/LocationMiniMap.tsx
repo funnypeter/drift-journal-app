@@ -21,9 +21,18 @@ interface Props {
   onExpand?: () => void
 }
 
+// Initialize Mapbox once per mount and route the click callback through a
+// ref. Same reasoning as FullMap — putting onCatchClick in the effect deps
+// caused fitBounds to re-fire whenever the parent's state changed, which
+// looked like the fish marker "jumping" back to the bounds-fit corner.
 export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExpand }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+  const onCatchClickRef = useRef(onCatchClick)
+  const onExpandRef = useRef(onExpand)
+
+  useEffect(() => { onCatchClickRef.current = onCatchClick }, [onCatchClick])
+  useEffect(() => { onExpandRef.current = onExpand }, [onExpand])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -34,11 +43,10 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
       style: 'mapbox://styles/mapbox/outdoors-v12',
       center: [lng, lat],
       zoom: 12,
-      // Mini map: pan/zoom disabled (parent wraps it in a "tap to expand"
-      // handler). DOM marker elements still receive clicks regardless.
       interactive: false,
       attributionControl: false,
     })
+    mapRef.current = map
 
     new mapboxgl.Marker({ color: '#1e4d43' })
       .setLngLat([lng, lat])
@@ -50,32 +58,28 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
       for (const c of catches) {
         if (c.lat == null || c.lng == null) continue
         const el = makeCatchMarkerEl(c.species)
-        if (onCatchClick) {
-          el.addEventListener('click', (e) => {
-            e.stopPropagation()
-            onCatchClick(c.id)
-          })
-        }
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          onCatchClickRef.current?.(c.id)
+        })
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
           .setLngLat([c.lng, c.lat])
           .addTo(map)
         catchMarkers.push(marker)
         bounds.extend([c.lng, c.lat])
       }
-      // Wait for the style+container to be ready before fitBounds — otherwise
-      // a freshly-mounted map can size the viewport to 0×0 momentarily and
-      // fitBounds ends up landing markers in a corner.
       const applyFit = () => map.fitBounds(bounds, { padding: 50, maxZoom: 14, duration: 0 })
       if (map.isStyleLoaded()) applyFit()
       else map.once('load', applyFit)
     }
 
-    mapRef.current = map
     return () => {
       catchMarkers.forEach(m => m.remove())
       map.remove()
+      mapRef.current = null
     }
-  }, [lat, lng, catches, onCatchClick])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className={styles.wrap}>
@@ -84,7 +88,7 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
         <button
           type="button"
           aria-label="Expand map"
-          onClick={(e) => { e.stopPropagation(); onExpand() }}
+          onClick={(e) => { e.stopPropagation(); onExpandRef.current?.() }}
           className={styles.expandBtn}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">

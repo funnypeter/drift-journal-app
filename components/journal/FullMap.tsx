@@ -19,9 +19,18 @@ interface Props {
   onCatchClick?: (catchId: string) => void
 }
 
+// Initialize Mapbox exactly once per mount. The catch click callback is read
+// through a ref each time a marker is tapped so we don't have to put it in the
+// effect's dependency array — putting it there caused fitBounds to re-fire
+// whenever the parent re-rendered (e.g. when setExpandedCatch updated state),
+// which yanked the camera back to its bounds-fit framing right under the
+// user's finger.
 export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+  const onCatchClickRef = useRef(onCatchClick)
+
+  useEffect(() => { onCatchClickRef.current = onCatchClick }, [onCatchClick])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -34,6 +43,7 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
       zoom: 13,
       attributionControl: false,
     })
+    mapRef.current = map
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
@@ -47,12 +57,10 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
       for (const c of catches) {
         if (c.lat == null || c.lng == null) continue
         const el = makeCatchMarkerEl(c.species)
-        if (onCatchClick) {
-          el.addEventListener('click', (e) => {
-            e.stopPropagation()
-            onCatchClick(c.id)
-          })
-        }
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          onCatchClickRef.current?.(c.id)
+        })
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
           .setLngLat([c.lng, c.lat])
           .addTo(map)
@@ -64,12 +72,13 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
       else map.once('load', applyFit)
     }
 
-    mapRef.current = map
     return () => {
       catchMarkers.forEach(m => m.remove())
       map.remove()
+      mapRef.current = null
     }
-  }, [lat, lng, catches, onCatchClick])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 }
