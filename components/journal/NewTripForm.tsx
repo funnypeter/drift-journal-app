@@ -201,13 +201,21 @@ export default function NewTripForm() {
       if (c.kind === 'flower') continue
       let photoId: string | undefined
       if (c.photoFile) {
+        // Try to compress for IDB. Some Android devices fail canvas.toBlob on
+        // very large images (memory limits) — if that happens, fall back to
+        // storing the original file (already JPEG via ensureJpegIfHeic in
+        // CatchCard) so the photo and downstream identify aren't lost.
+        let blob: Blob = c.photoFile
+        let mimeType = c.photoFile.type || 'image/jpeg'
         try {
           const compressed = await compressForUpload(c.photoFile, 1600, 0.8)
-          photoId = crypto.randomUUID()
-          photos.push({ id: photoId, blob: compressed, mimeType: compressed.type || 'image/jpeg' })
+          blob = compressed
+          mimeType = compressed.type || mimeType
         } catch (e) {
-          console.warn('Photo compression failed during offline queue:', e)
+          console.warn('Photo compression failed during offline queue, queuing original:', e)
         }
+        photoId = crypto.randomUUID()
+        photos.push({ id: photoId, blob, mimeType })
       }
       pendingCatches.push({
         id: catchIds[i],
