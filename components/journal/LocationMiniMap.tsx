@@ -62,7 +62,12 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
         catchMarkers.push(marker)
         bounds.extend([c.lng, c.lat])
       }
-      map.fitBounds(bounds, { padding: 40, maxZoom: 14, duration: 0 })
+      // Wait for the style+container to be ready before fitBounds — otherwise
+      // a freshly-mounted map can size the viewport to 0×0 momentarily and
+      // fitBounds ends up landing markers in a corner.
+      const applyFit = () => map.fitBounds(bounds, { padding: 50, maxZoom: 14, duration: 0 })
+      if (map.isStyleLoaded()) applyFit()
+      else map.once('load', applyFit)
     }
 
     mapRef.current = map

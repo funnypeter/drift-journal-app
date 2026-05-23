@@ -59,7 +59,9 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
         catchMarkers.push(marker)
         bounds.extend([c.lng, c.lat])
       }
-      map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 })
+      const applyFit = () => map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 0 })
+      if (map.isStyleLoaded()) applyFit()
+      else map.once('load', applyFit)
     }
 
     mapRef.current = map
