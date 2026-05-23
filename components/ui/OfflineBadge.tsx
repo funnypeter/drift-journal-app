@@ -61,7 +61,7 @@ export default function OfflineBadge() {
     return (
       <div className={styles.wrap}>
         <button className={styles.pill} data-tone="pending" onClick={onClick} disabled={draining}>
-          <span className={styles.dot} />
+          {draining ? <span className={styles.spinner} /> : <span className={styles.dot} />}
           {draining ? 'Syncing…' : `${pending} pending · tap to sync`}
         </button>
       </div>
