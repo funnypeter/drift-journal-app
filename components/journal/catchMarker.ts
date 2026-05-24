@@ -19,8 +19,13 @@ const FISH_SVG = `
 export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   // Outer hit target — transparent ring around the visible marker so finger
   // taps within ~44px land on the element instead of falling through to the
-  // map canvas below. Without this, a slightly-off tap was hitting the
-  // map's wrap and triggering the mini-map's "expand" gesture.
+  // map canvas below.
+  //
+  // IMPORTANT: do NOT set `transform` on this wrap element. Mapbox uses the
+  // wrap's transform to position the marker (`translate3d(x, y, 0)`). Any
+  // CSS transform we set here clobbers that and the marker teleports to
+  // (0, 0) of the map container — i.e. the top-left corner. Hover/press
+  // effects go on the INNER bubble instead.
   const wrap = document.createElement('div')
   wrap.style.cursor = 'pointer'
   wrap.style.display = 'flex'
@@ -28,9 +33,6 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   wrap.style.alignItems = 'center'
   wrap.style.padding = '10px'
   wrap.style.margin = '-10px'
-  wrap.style.transition = 'transform 120ms ease'
-  wrap.addEventListener('pointerenter', () => { wrap.style.transform = 'scale(1.15)' })
-  wrap.addEventListener('pointerleave', () => { wrap.style.transform = 'scale(1)' })
 
   const bubble = document.createElement('div')
   bubble.style.background = '#1e4d43'
@@ -41,6 +43,8 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   bubble.style.display = 'flex'
   bubble.style.alignItems = 'center'
   bubble.style.justifyContent = 'center'
+  bubble.style.transition = 'transform 120ms ease'
+  bubble.style.transformOrigin = 'center'
   bubble.innerHTML = FISH_SVG
 
   const tail = document.createElement('div')
@@ -50,6 +54,10 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   tail.style.borderRight = '6px solid transparent'
   tail.style.borderTop = '8px solid #1e4d43'
   tail.style.marginTop = '-1px'
+
+  // Hover/press effects on the inner bubble — never on the wrap.
+  wrap.addEventListener('pointerenter', () => { bubble.style.transform = 'scale(1.15)' })
+  wrap.addEventListener('pointerleave', () => { bubble.style.transform = 'scale(1)' })
 
   wrap.appendChild(bubble)
   wrap.appendChild(tail)
