@@ -117,11 +117,18 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
-      {/* Temporary build indicator — remove after the map pin debug is settled.
-          If this reads "build v3", you're on the latest code; if it doesn't show
-          at all, the tab is serving an older bundle. */}
-      <div style={{ fontSize: 11, color: '#888', textAlign: 'right', marginTop: 4, fontFamily: 'monospace' }}>
-        build v3 — {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local'}
+      {/* Temporary debug panel — remove after the map pin issue is settled.
+          Shows the raw catch data the map is using so we can stop guessing. */}
+      <div style={{ fontSize: 11, color: '#555', marginTop: 4, fontFamily: 'monospace', background: 'rgba(0,0,0,0.04)', padding: 8, borderRadius: 6 }}>
+        <div>build v4 — {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local'}</div>
+        <div>trip: lat={String(trip.lat)} ({typeof trip.lat}) lng={String(trip.lng)} ({typeof trip.lng})</div>
+        <div>catches in feed: {catches.length}</div>
+        <div>catches with pins (mapCatches): {mapCatches.length}</div>
+        {mapCatches.map((c, i) => (
+          <div key={c.id}>
+            #{i}: id={c.id.slice(0, 8)} lat={String(c.lat)} ({typeof c.lat}) lng={String(c.lng)} ({typeof c.lng})
+          </div>
+        ))}
       </div>
 
       {/* Conditions grid */}
