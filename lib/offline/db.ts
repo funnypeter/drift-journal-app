@@ -41,6 +41,8 @@ export interface PendingCatch {
   date?: string
   notes?: string
   sort_order: number
+  lat?: number
+  lng?: number
   photoId?: string
   needs_identify?: boolean
   serverPhotoUrl?: string | null

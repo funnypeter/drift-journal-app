@@ -16,6 +16,8 @@ interface CatchDraft {
   time_caught?: string
   date?: string
   notes?: string
+  lat?: number
+  lng?: number
   photoFile?: File
   photoPreview?: string
   kind?: 'fish' | 'flower'
@@ -91,6 +93,34 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     } catch (err: any) {
       setAiResult(`ID failed: ${err.message || 'could not load photo'}`)
     }
+  }
+
+  const [pinLoading, setPinLoading] = useState(false)
+  const [pinError, setPinError] = useState('')
+
+  function dropPin() {
+    if (!navigator.geolocation) {
+      setPinError('GPS not available on this device')
+      return
+    }
+    setPinLoading(true)
+    setPinError('')
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setPinLoading(false)
+      },
+      err => {
+        setPinError(err.message || 'Could not get GPS')
+        setPinLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    )
+  }
+
+  function clearPin() {
+    onChange({ lat: undefined, lng: undefined })
+    setPinError('')
   }
 
   const flyOptions = FLY_DATA[flyCategory] || FLY_DATA['Dry Flies']
@@ -253,6 +283,32 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Catch pin */}
+      <div className={styles.pinRow}>
+        <label className={styles.label}>Catch Location</label>
+        {catch_.lat != null && catch_.lng != null ? (
+          <div className={styles.pinDisplay}>
+            <svg viewBox="0 0 24 24" fill="#1e4d43" stroke="white" strokeWidth="1.5" width="14" height="14">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3" fill="white" stroke="none"/>
+            </svg>
+            <span className={styles.pinCoords}>
+              {catch_.lat.toFixed(5)}, {catch_.lng.toFixed(5)}
+            </span>
+            <button type="button" className={styles.pinClear} onClick={clearPin}>Clear</button>
+          </div>
+        ) : (
+          <button type="button" className={styles.pinBtn} onClick={dropPin} disabled={pinLoading}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            {pinLoading ? 'Locating…' : 'Drop Pin'}
+          </button>
+        )}
+        {pinError && <div className={styles.pinError}>{pinError}</div>}
       </div>
 
       {/* Notes */}

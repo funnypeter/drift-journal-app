@@ -174,6 +174,8 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           fly: c.fly || null, fly_category: c.fly_category, fly_size: c.fly_size,
           time_caught: c.time_caught || null, date: c.date || date,
           notes: c.notes, photo_url: photoUrl, sort_order: i,
+          lat: c.lat ?? null,
+          lng: c.lng ?? null,
         }
 
         const catchResp = c.id

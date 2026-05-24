@@ -30,6 +30,8 @@ interface CatchDraft {
   date?: string
   notes?: string
   sort_order: number
+  lat?: number
+  lng?: number
   photoFile?: File
   photoPreview?: string
   photoId?: string
@@ -96,6 +98,8 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
             date: c.date,
             notes: c.notes,
             sort_order: c.sort_order,
+            lat: c.lat,
+            lng: c.lng,
             photoId: c.photoId,
             photoPreview: preview,
           })
@@ -223,6 +227,8 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
           date: c.date,
           notes: c.notes,
           sort_order: i,
+          lat: c.lat,
+          lng: c.lng,
           photoId,
           needs_identify: orig?.needs_identify ?? !!photoId,
           serverPhotoUrl: orig?.serverPhotoUrl,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -31,6 +31,31 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   const [showFullMap, setShowFullMap] = useState(false)
 
   const catches = trip.catches || []
+  // Only catches with a dropped pin get markers — keeps the map uncluttered
+  // for legacy catches with no GPS recorded. Memoized so the map's useEffect
+  // doesn't see a new array reference (and re-create the Mapbox instance) on
+  // every TripDetail render. Without this, opening the expanded-catch modal
+  // would tear down + rebuild the map, and the rebuilt map's fitBounds ran
+  // against a container that wasn't fully sized yet — visible as the fish
+  // marker "jumping" to a corner before the card actually opened.
+  const mapCatches = useMemo(
+    () => catches
+      .filter(c => c.lat != null && c.lng != null)
+      .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
+    [catches]
+  )
+
+  const openCatchById = useCallback((id: string) => {
+    const c = catches.find(x => x.id === id)
+    if (c) setExpandedCatch(c)
+  }, [catches])
+
+  const handleFullMapCatchClick = useCallback((id: string) => {
+    setShowFullMap(false)
+    openCatchById(id)
+  }, [openCatchById])
+
+  const handleExpand = useCallback(() => setShowFullMap(true), [])
 
   async function handleDelete() {
     setDeleting(true)
@@ -81,10 +106,17 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
       {/* Map */}
       {trip.lat && trip.lng && (
-        <div className={styles.mapWrap} onClick={() => setShowFullMap(true)} style={{ cursor: 'pointer' }}>
-          <LocationMiniMap lat={trip.lat} lng={trip.lng} />
+        <div className={styles.mapWrap}>
+          <LocationMiniMap
+            lat={trip.lat}
+            lng={trip.lng}
+            catches={mapCatches}
+            onCatchClick={openCatchById}
+            onExpand={handleExpand}
+          />
         </div>
       )}
+
 
       {/* Conditions grid */}
       <div className={styles.condGrid}>
@@ -204,7 +236,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
               </svg>
             </button>
             <div className={styles.fullMapTitle}>{trip.location}</div>
-            <FullMap lat={trip.lat} lng={trip.lng} />
+            <FullMap
+              lat={trip.lat}
+              lng={trip.lng}
+              catches={mapCatches}
+              onCatchClick={handleFullMapCatchClick}
+            />
           </div>
         </div>
       )}

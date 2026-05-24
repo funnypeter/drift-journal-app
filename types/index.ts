@@ -50,6 +50,11 @@ export interface Catch {
   photo_path?: string
   ai_confidence?: number
   sort_order: number
+  // Optional catch-level pin (the spot this specific fish was caught).
+  // Distinct from the trip's overall lat/lng; surfaced as fish markers on
+  // the journal-entry map.
+  lat?: number
+  lng?: number
   created_at: string
   updated_at: string
 }
