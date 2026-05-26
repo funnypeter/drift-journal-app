@@ -27,7 +27,7 @@ interface LocationData {
 interface CatchDraft extends Omit<Catch, 'id' | 'trip_id' | 'user_id' | 'created_at' | 'updated_at'> {
   photoFile?: File
   photoPreview?: string
-  kind?: 'fish' | 'flower'
+  kind?: 'fish' | 'flower' | 'none'
 }
 
 export default function NewTripForm() {
@@ -98,7 +98,7 @@ export default function NewTripForm() {
 
   function addCatch() {
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '16',
+      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
       length: undefined, time_caught: undefined, date: date, notes: '', sort_order: prev.length,
     }])
   }
@@ -138,7 +138,7 @@ export default function NewTripForm() {
     const photoUrls: (string | null)[] = []
     for (let i = 0; i < catches.length; i++) {
       const c = catches[i]
-      if (c.kind === 'flower') { photoUrls.push(null); continue }
+      if (c.kind === 'flower' || c.kind === 'none') { photoUrls.push(null); continue }
       let photoUrl: string | null = null
 
       if (c.photoFile) {
@@ -200,7 +200,7 @@ export default function NewTripForm() {
 
     for (let i = 0; i < catches.length; i++) {
       const c = catches[i]
-      if (c.kind === 'flower') continue
+      if (c.kind === 'flower' || c.kind === 'none') continue
       let photoId: string | undefined
       if (c.photoFile) {
         // Try to compress for IDB. Some Android devices fail canvas.toBlob on

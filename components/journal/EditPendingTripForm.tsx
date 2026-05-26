@@ -35,7 +35,7 @@ interface CatchDraft {
   photoFile?: File
   photoPreview?: string
   photoId?: string
-  kind?: 'fish' | 'flower'
+  kind?: 'fish' | 'flower' | 'none'
   _delete?: boolean
   _isNew?: boolean
 }
@@ -135,7 +135,7 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
 
   function addCatch() {
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '16',
+      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
       date: date, sort_order: prev.length, _isNew: true,
     }])
   }

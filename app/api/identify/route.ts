@@ -15,11 +15,12 @@ export async function POST(req: NextRequest) {
 
   const speciesHint = 'Common game fish include trout (Rainbow, Brown, Cutthroat, Brook, Bull, Lake, Golden), salmon (Chinook, Coho, Sockeye), Steelhead, Arctic Grayling, bass (Largemouth, Smallmouth, Spotted, Striped), walleye, northern pike, muskellunge, panfish (Bluegill, Crappie, Yellow Perch), catfish, carp, and saltwater species (Redfish, Snook, Tarpon, Bonefish, Mahi-Mahi, Tuna, Grouper, Snapper, Halibut, Rockfish, etc.) — but identify whatever species you see.'
   const flowerHint = 'If the photo clearly shows a flower (or flowering plant) instead of a fish, set "kind":"flower" and return the flower\'s common name as "species" (e.g. "Black-eyed Susan", "Tulip", "Wild Rose"). For flowers, return "length":"" — do not estimate a size.'
+  const noFishHint = 'If the photo shows NEITHER a fish NOR a flower (e.g. a hand, a rock, a person, a landscape, gear, an empty net, food, etc.), set "kind":"none", "species":"No Fish", "length":"", "confidence":0. Do NOT guess a fish species when no fish is visible.'
 
   const sizeRef = netHoleSize
     ? ` For fish, the net holes are ${netHoleSize} inches in diameter — use this as a reference for your size estimate.`
     : ''
-  const prompt = `Look at the photo. If it shows a fish, determine the fish species and estimate its length in inches.${sizeRef} Output ONLY valid JSON: {"kind":"fish","species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Use "kind":"fish" for fish. ${speciesHint} ${flowerHint}`
+  const prompt = `Look at the photo. If it shows a fish, determine the fish species and estimate its length in inches.${sizeRef} Output ONLY valid JSON: {"kind":"fish","species":"Brown Trout","length":"XX.X","confidence":75} where XX.X is your best estimate. Use "kind":"fish" for fish. ${speciesHint} ${flowerHint} ${noFishHint}`
 
   try {
     const response = await fetch(

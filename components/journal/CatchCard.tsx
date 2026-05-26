@@ -20,7 +20,7 @@ interface CatchDraft {
   lng?: number
   photoFile?: File
   photoPreview?: string
-  kind?: 'fish' | 'flower'
+  kind?: 'fish' | 'flower' | 'none'
 }
 
 interface Props {
@@ -42,6 +42,14 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   async function runIdentify(base64: string, mimeType: string) {
     try {
       const result = await identify(base64, mimeType, profile?.net_hole_size)
+      if ((result as any).kind === 'none') {
+        // No fish and no flower in the photo — treat the same way as flowers:
+        // keep the photo visible but skip saving as a counted catch.
+        onChange({ kind: 'none', species: 'No Fish', length: undefined, fly: '', fly_category: '', fly_size: '' })
+        setFlyCategory('Dry Flies')
+        setAiResult('No fish or flower detected')
+        return
+      }
       if (result.species) {
         if (result.kind === 'flower') {
           onChange({ kind: 'flower', species: result.species, length: undefined, fly: '', fly_category: '', fly_size: '' })
@@ -198,6 +206,15 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
           No fish detected — this photo won&apos;t be saved as a catch.
+        </div>
+      )}
+
+      {catch_.kind === 'none' && (
+        <div className={styles.aiBanner} style={{ background: '#fef3c7', color: '#92400e' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          </svg>
+          No fish or flower in this photo — this entry won&apos;t be saved as a catch.
         </div>
       )}
 

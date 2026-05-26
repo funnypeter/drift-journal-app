@@ -12,7 +12,7 @@ import styles from './NewTripForm.module.css'
 interface CatchDraft extends Partial<Catch> {
   photoFile?: File
   photoPreview?: string
-  kind?: 'fish' | 'flower'
+  kind?: 'fish' | 'flower' | 'none'
   _delete?: boolean
 }
 
@@ -81,7 +81,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
   function addCatch() {
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '16',
+      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
       date: date, sort_order: prev.length,
     }])
   }
@@ -138,9 +138,10 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           continue
         }
 
-        // Flower-identified entries are not saved as catches. If one was already
-        // persisted (e.g. from before this rule), delete it so it doesn't linger.
-        if (c.kind === 'flower') {
+        // Flower- or no-fish-identified entries are not saved as catches. If
+        // one was already persisted (e.g. from before this rule), delete it
+        // so it doesn't linger.
+        if (c.kind === 'flower' || c.kind === 'none') {
           if (c.id) {
             await fetch('/api/catches', {
               method: 'DELETE',
