@@ -78,12 +78,14 @@ npm run lint    # ESLint
 ## Database Tables
 
 - **profiles**: id, email, display_name, avatar_url, net_hole_size
-- **trips**: id, user_id, title, date, location, state, lat, lng, flow, water_temp, gauge_height, air_temp, baro, weather, wind, moon, notes, bg_color, hero_photo_url, usgs_site_id
+- **trips**: id, user_id, title, date, location, state, lat, lng, flow, water_temp, gauge_height, air_temp, baro, weather, wind, moon, notes, bg_color, hero_photo_url, usgs_site_id, is_public
 - **catches**: id, trip_id, user_id, species, length, fly, fly_category, fly_size, time_caught, date, notes, photo_url, photo_path, ai_confidence, sort_order, lat, lng
 
 `catches.lat` / `catches.lng` are optional per-catch GPS pins (distinct from the trip's overall location) — added in `003_add_catch_location.sql`. They drive the fish-icon markers on the journal-entry map; tapping a marker opens the expanded catch view. Set via a "Drop Pin" button on the catch form (captures current GPS; works offline since GPS is hardware).
 
 **Mapbox custom-marker footgun**: `mapboxgl.Marker({ element })` positions the marker by writing `transform: translate3d(x, y, 0)` on the element you pass in. If any CSS / JS sets `transform` on that same element (e.g. `:hover { transform: scale(1.15) }` or `el.style.transform = 'scale(...)'`), it **clobbers the translate** and the marker teleports to (0, 0) of the map container — i.e. the top-left corner. Apply hover/press transforms to a child element instead, never to the wrap Mapbox owns. See `components/journal/catchMarker.ts`.
+
+**Public share links**: A trip can be made shareable by setting `trips.is_public = true` (toggle lives in `ShareTripDialog` on the trip detail page). The public route is `/share/[id]` — server-rendered with the anon Supabase client, bypassed in `middleware.ts` so unauthenticated visitors can view it. RLS in migration `004` is additive: owners keep their existing CRUD policy; an additional `select`-only policy permits anyone (including anon) when `is_public = true`, plus a join-via-exists policy on `catches` so the trip's catches come along.
 
 ## Notes
 

@@ -29,6 +29,9 @@ export interface Trip {
   bg_color?: string
   hero_photo_url?: string
   usgs_site_id?: string
+  // Owner-controlled flag. When true, anyone can view the trip via /share/<id>
+  // without authenticating — see RLS in migration 004.
+  is_public?: boolean
   created_at: string
   updated_at: string
   catches?: Catch[]
