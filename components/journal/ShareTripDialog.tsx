@@ -21,7 +21,13 @@ export default function ShareTripDialog({ tripId, initialIsPublic, onClose }: Pr
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setShareUrl(`${window.location.origin}/share/${tripId}`)
+      // Prefer NEXT_PUBLIC_APP_URL (production hostname) so the link the
+      // owner shares always points at production — never at a Vercel preview
+      // URL, which is behind Vercel's deployment-protection auth wall and
+      // would force the recipient to sign in to a Vercel account before
+      // they ever reach our app.
+      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      setShareUrl(`${base.replace(/\/$/, '')}/share/${tripId}`)
     }
   }, [tripId])
 
