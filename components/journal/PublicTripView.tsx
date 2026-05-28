@@ -1,12 +1,9 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
-import ShareCard from '@/components/share/ShareCard'
-import ShareTripDialog from './ShareTripDialog'
 import { realCatches, isNoFish } from '@/lib/catchUtils'
 import styles from './TripDetail.module.css'
 
@@ -23,23 +20,16 @@ function getMoonPhase(dateStr: string) {
   return phases[Math.round(phase / synodic * 8) % 8]
 }
 
-export default function TripDetail({ trip }: { trip: Trip }) {
-  const router = useRouter()
-  const [shareTarget, setShareTarget] = useState<Catch | null>(null)
+// Read-only public view rendered at /share/<id>. No Edit / Delete / Share /
+// owner-only affordances — anyone with the link sees just the trip story.
+// Otherwise mirrors TripDetail's display so the public report and the
+// owner's private view look the same.
+export default function PublicTripView({ trip }: { trip: Trip }) {
   const [expandedCatch, setExpandedCatch] = useState<Catch | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullMap, setShowFullMap] = useState(false)
-  const [showShareDialog, setShowShareDialog] = useState(false)
 
   const catches = trip.catches || []
-  // Only catches with a dropped pin get markers — keeps the map uncluttered
-  // for legacy catches with no GPS recorded. Memoized so the map's useEffect
-  // doesn't see a new array reference (and re-create the Mapbox instance) on
-  // every TripDetail render. Without this, opening the expanded-catch modal
-  // would tear down + rebuild the map, and the rebuilt map's fitBounds ran
-  // against a container that wasn't fully sized yet — visible as the fish
-  // marker "jumping" to a corner before the card actually opened.
+
   const mapCatches = useMemo(
     () => catches
       .filter(c => c.lat != null && c.lng != null)
@@ -59,52 +49,22 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
   const handleExpand = useCallback(() => setShowFullMap(true), [])
 
-  async function handleDelete() {
-    setDeleting(true)
-    try {
-      const resp = await fetch(`/api/trips/${trip.id}`, { method: 'DELETE' })
-      if (resp.ok) {
-        router.push('/dashboard')
-      } else {
-        const data = await resp.json()
-        alert(data.error || 'Failed to delete')
-        setDeleting(false)
-      }
-    } catch {
-      alert('Failed to delete')
-      setDeleting(false)
-    }
-  }
-
   return (
     <div className={styles.container}>
-      {/* Top bar */}
       <div className={styles.topBar}>
-        <Link href="/dashboard" className={styles.backBtn}>
+        <Link href="/" className={styles.backBtn} aria-label="Drift Journal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-            <path d="M15 18l-6-6 6-6"/>
+            <path d="M3 12l2-2 7-7 7 7 2 2"/>
+            <path d="M5 10v10h14V10"/>
           </svg>
         </Link>
         <div className={styles.topActions}>
-          <button className={styles.editBtn} onClick={() => setShowShareDialog(true)} aria-label="Share trip" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-            Share
-          </button>
-          <Link href={`/trips/${trip.id}/edit`} className={styles.editBtn}>Edit</Link>
-          <button className={styles.deleteBtn} onClick={() => setShowDeleteConfirm(true)}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
-          </button>
+          <span style={{ fontSize: 11, color: '#888', fontFamily: 'var(--sans)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            Shared trip report
+          </span>
         </div>
       </div>
 
-      {/* Date & Title */}
       <div className={styles.dateLabel}>
         {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
       </div>
@@ -114,7 +74,6 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
       </div>
 
-      {/* Map */}
       {trip.lat && trip.lng && (
         <div className={styles.mapWrap}>
           <LocationMiniMap
@@ -127,8 +86,6 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
-
-      {/* Conditions grid */}
       <div className={styles.condGrid}>
         <Cond label="Water Flow" value={trip.flow ? `${trip.flow} cfs` : 'N/A'} />
         <Cond label="Water Temp" value={trip.water_temp ? `${trip.water_temp}°F` : 'N/A'} />
@@ -139,14 +96,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         <Cond label="Moon" value={getMoonPhase(trip.date)} />
       </div>
 
-      {/* Notes */}
       {trip.notes && (
         <div className={styles.notes}>
           <p>{trip.notes}</p>
         </div>
       )}
 
-      {/* Catches */}
       {catches.length > 0 && (
         <div className={styles.catches}>
           <div className={styles.catchHeader}>
@@ -166,7 +121,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                     </>
                   ) : (
                     <div className={styles.catchNoPhoto}>
-                      <svg viewBox="0 0 40 28" fill="none"><path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                      <svg viewBox="0 0 40 28" fill="none">
+                        <path d="M3 14Q10 7 17 11Q24 15 31 9Q36 4 39 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
                     </div>
                   )}
                 </div>
@@ -196,23 +153,12 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
-      {/* Expanded catch modal */}
       {expandedCatch && (() => {
         const real = realCatches(catches)
         const realIdx = real.findIndex(c => c.id === expandedCatch.id)
         return (
           <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
             <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
-              {expandedCatch.photo_url && (
-                <button className={styles.expandedShare} onClick={() => { setExpandedCatch(null); setShareTarget(expandedCatch) }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                  </svg>
-                  Share
-                </button>
-              )}
               {expandedCatch.photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={expandedCatch.photo_url} alt={expandedCatch.species} className={styles.expandedImg} />
@@ -236,11 +182,10 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         )
       })()}
 
-      {/* Full map modal */}
       {showFullMap && trip.lat && trip.lng && (
         <div className={styles.overlay} onClick={() => setShowFullMap(false)}>
           <div className={styles.fullMapCard} onClick={e => e.stopPropagation()}>
-            <button className={styles.fullMapClose} onClick={() => setShowFullMap(false)}>
+            <button className={styles.fullMapClose} onClick={() => setShowFullMap(false)} aria-label="Close map">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -256,46 +201,10 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       )}
 
-      {/* Delete confirmation */}
-      {showDeleteConfirm && (
-        <div className={styles.overlay} onClick={() => setShowDeleteConfirm(false)}>
-          <div className={styles.confirmBox} onClick={e => e.stopPropagation()}>
-            <h3>Delete this trip?</h3>
-            <p>This will permanently delete &ldquo;{trip.title}&rdquo; and all its catches.</p>
-            <div className={styles.confirmActions}>
-              <button className={styles.cancelBtn} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
-              <button className={styles.confirmDeleteBtn} onClick={handleDelete} disabled={deleting}>
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Share trip (public link) dialog */}
-      {showShareDialog && (
-        <ShareTripDialog
-          tripId={trip.id}
-          initialIsPublic={!!trip.is_public}
-          onClose={() => setShowShareDialog(false)}
-        />
-      )}
-
-      {/* Share Card Modal */}
-      {shareTarget && (() => {
-        const real = realCatches(catches)
-        const idxInReal = real.findIndex(c => c.id === shareTarget.id)
-        const showCount = !isNoFish(shareTarget) && idxInReal >= 0
-        return (
-          <ShareCard
-            trip={trip}
-            catch_={shareTarget}
-            onClose={() => setShareTarget(null)}
-            catchNumber={showCount ? idxInReal + 1 : undefined}
-            catchTotal={showCount ? real.length : undefined}
-          />
-        )
-      })()}
+      {/* Footer attribution — gives the visitor a way back to the app */}
+      <div style={{ textAlign: 'center', marginTop: 32, padding: '24px 0', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: 12, color: '#888', fontFamily: 'var(--sans)' }}>
+        Logged with <Link href="/" style={{ color: 'var(--teal, #1e4d43)', fontWeight: 600, textDecoration: 'none' }}>Drift Journal</Link>
+      </div>
     </div>
   )
 }

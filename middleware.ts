@@ -29,8 +29,13 @@ export async function middleware(req: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Redirect unauthenticated users to login
-  if (!session && !req.nextUrl.pathname.startsWith('/auth')) {
+  // Redirect unauthenticated users to login, except for the public share route
+  // (anyone with the link can view a public trip) and the auth pages themselves.
+  if (
+    !session &&
+    !req.nextUrl.pathname.startsWith('/auth') &&
+    !req.nextUrl.pathname.startsWith('/share')
+  ) {
     const redirectUrl = req.nextUrl.clone()
     redirectUrl.pathname = '/auth/login'
     redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
