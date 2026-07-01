@@ -8,7 +8,6 @@ import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import BatchPhotoImport from './BatchPhotoImport'
 import { compressForUpload } from '@/lib/imageUtils'
-import { getLastFly } from '@/lib/prefs'
 import { enqueueTrip } from '@/lib/offline/queueClient'
 import { drainQueue } from '@/lib/offline/sync'
 import { notifyQueueChanged } from '@/hooks/usePendingCount'
@@ -98,16 +97,19 @@ export default function NewTripForm() {
   }, [location, date])
 
   function addCatch() {
-    // Default the fly to whatever the last catch used — if you hooked one on a
-    // given fly, odds are you keep fishing it. Cleared when you pick a new fly.
-    const last = getLastFly()
-    setCatches(prev => [...prev, {
-      species: 'Unknown',
-      fly: last?.fly || '',
-      fly_category: last?.fly_category || 'Dry Flies',
-      fly_size: last?.fly_size || '',
-      length: undefined, time_caught: undefined, date: date, notes: '', sort_order: prev.length,
-    }])
+    // Default the fly to the most recent catch in THIS trip that used one — if
+    // you hooked a fish on a fly, odds are you keep fishing it. Per-trip only:
+    // a fresh trip starts with no default until you pick a fly.
+    setCatches(prev => {
+      const lastFly = [...prev].reverse().find(c => c.fly)
+      return [...prev, {
+        species: 'Unknown',
+        fly: lastFly?.fly || '',
+        fly_category: lastFly?.fly_category || 'Dry Flies',
+        fly_size: lastFly?.fly_size || '',
+        length: undefined, time_caught: undefined, date: date, notes: '', sort_order: prev.length,
+      }]
+    })
   }
 
   function updateCatch(i: number, updates: Partial<CatchDraft>) {

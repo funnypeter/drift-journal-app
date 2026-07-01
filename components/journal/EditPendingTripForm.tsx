@@ -5,7 +5,6 @@ import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload } from '@/lib/imageUtils'
-import { getLastFly } from '@/lib/prefs'
 import { getDB } from '@/lib/offline/db'
 import {
   getPendingTrip,
@@ -135,18 +134,42 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
   }, [pendingId])
 
   function addCatch() {
-    const last = getLastFly()
-    setCatches(prev => [...prev, {
-      species: 'Unknown',
-      fly: last?.fly || '',
-      fly_category: last?.fly_category || 'Dry Flies',
-      fly_size: last?.fly_size || '',
-      date: date, sort_order: prev.length, _isNew: true,
-    }])
+    // Per-trip carry-over: default to the most recent catch that has a fly.
+    setCatches(prev => {
+      const lastFly = [...prev].reverse().find(c => c.fly && !c._delete)
+      return [...prev, {
+        species: 'Unknown',
+        fly: lastFly?.fly || '',
+        fly_category: lastFly?.fly_category || 'Dry Flies',
+        fly_size: lastFly?.fly_size || '',
+        date: date, sort_order: prev.length, _isNew: true,
+      }]
+    })
   }
 
   function updateCatchDraft(i: number, updates: Partial<CatchDraft>) {
     setCatches(prev => prev.map((c, idx) => idx === i ? { ...c, ...updates } : c))
+  }
+
+  // Offer to apply a (re)chosen fly to every later catch in this pending trip.
+  const [flyPrompt, setFlyPrompt] = useState<
+    { index: number; fly: string; fly_category: string; fly_size: string; count: number } | null
+  >(null)
+
+  function onFlyChosen(i: number, sel: { fly: string; fly_category: string; fly_size: string }) {
+    const laterDiffer = catches.filter(
+      (c, idx) => idx > i && !c._delete && (c.fly || '') !== sel.fly
+    ).length
+    if (laterDiffer > 0) setFlyPrompt({ index: i, ...sel, count: laterDiffer })
+  }
+
+  function applyFlyToSubsequent() {
+    if (!flyPrompt) return
+    const { index, fly, fly_category, fly_size } = flyPrompt
+    setCatches(prev => prev.map((c, idx) =>
+      idx > index && !c._delete ? { ...c, fly, fly_category, fly_size } : c
+    ))
+    setFlyPrompt(null)
   }
 
   function removeCatch(i: number) {
@@ -373,6 +396,7 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
               onRemove={() => removeCatch(i)}
               isHero={heroIndex === i}
               onSetHero={() => setHeroIndex(i)}
+              onFlyChosen={(sel) => onFlyChosen(i, sel)}
             />
           )
         })}
@@ -394,6 +418,20 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
           </svg>Save Changes</>
         )}
       </button>
+
+      {flyPrompt && (
+        <div className={styles.flyPromptOverlay} onClick={() => setFlyPrompt(null)}>
+          <div className={styles.flyPrompt} onClick={e => e.stopPropagation()}>
+            <p className={styles.flyPromptText}>
+              Use <strong>{flyPrompt.fly}</strong> for the {flyPrompt.count} catch{flyPrompt.count > 1 ? 'es' : ''} after this one too?
+            </p>
+            <div className={styles.flyPromptBtns}>
+              <button className={styles.flyPromptNo} onClick={() => setFlyPrompt(null)}>No</button>
+              <button className={styles.flyPromptYes} onClick={applyFlyToSubsequent}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

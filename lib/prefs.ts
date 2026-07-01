@@ -1,12 +1,14 @@
 'use client'
 
-// localStorage-backed entry conveniences: recent locations, remembered custom
-// flies, and the last fly used. All access is SSR-safe (guards on `window`) and
-// swallows quota/parse errors so a full or corrupt store never breaks the form.
+// localStorage-backed entry conveniences: recent locations and remembered
+// custom flies. All access is SSR-safe (guards on `window`) and swallows
+// quota/parse errors so a full or corrupt store never breaks the form.
+//
+// Note: fly carry-over to the next catch is deliberately NOT stored here — it's
+// per-trip in-memory (see addCatch in the trip forms), so it resets each trip.
 
 const RECENT_LOCATIONS_KEY = 'drift.recentLocations'
 const CUSTOM_FLIES_KEY = 'drift.customFlies'
-const LAST_FLY_KEY = 'drift.lastFly'
 
 const MAX_RECENT_LOCATIONS = 6
 const MAX_CUSTOM_FLIES = 12
@@ -16,12 +18,6 @@ export interface RecentLocation {
   lat: number
   lng: number
   state: string
-}
-
-export interface LastFly {
-  fly_category: string
-  fly: string
-  fly_size: string
 }
 
 function read<T>(key: string, fallback: T): T {
@@ -76,14 +72,4 @@ export function addCustomFly(category: string, fly: string): string[] {
   all[category] = next
   write(CUSTOM_FLIES_KEY, all)
   return next
-}
-
-// ── Last-used fly ─────────────────────────────────────────────────────────────
-export function getLastFly(): LastFly | null {
-  return read<LastFly | null>(LAST_FLY_KEY, null)
-}
-
-export function setLastFly(fly: LastFly) {
-  if (!fly.fly) return
-  write(LAST_FLY_KEY, fly)
 }

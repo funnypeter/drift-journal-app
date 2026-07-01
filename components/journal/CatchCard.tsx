@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
 import { compressForIdentify, ensureJpegIfHeic } from '@/lib/imageUtils'
-import { getCustomFlies, addCustomFly, setLastFly } from '@/lib/prefs'
+import { getCustomFlies, addCustomFly } from '@/lib/prefs'
 import { FLY_DATA, FLY_SIZES } from '@/types'
 import SpeciesSelect from './SpeciesSelect'
 import styles from './CatchCard.module.css'
@@ -31,9 +31,12 @@ interface Props {
   onRemove: () => void
   isHero?: boolean
   onSetHero?: () => void
+  // Fired when a fly is definitively chosen (pill tap or committed custom entry),
+  // not on every keystroke. Lets the parent offer to apply it to later catches.
+  onFlyChosen?: (sel: { fly: string; fly_category: string; fly_size: string }) => void
 }
 
-export default function CatchCard({ index, catch_, onChange, onRemove, isHero, onSetHero }: Props) {
+export default function CatchCard({ index, catch_, onChange, onRemove, isHero, onSetHero, onFlyChosen }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const { identify, loading: identifying } = useIdentify()
   const { profile } = useProfile()
@@ -44,18 +47,25 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   const [customFlies, setCustomFlies] = useState<string[]>([])
   useEffect(() => { setCustomFlies(getCustomFlies(flyCategory)) }, [flyCategory])
 
-  // Pick a fly and remember it — the next catch will default to it.
+  // Keep the local category pills in sync if the parent changes fly_category
+  // (e.g. when applying a fly across subsequent catches on edit).
+  useEffect(() => {
+    if (catch_.fly_category && catch_.fly_category !== flyCategory) setFlyCategory(catch_.fly_category)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catch_.fly_category])
+
+  // Pick a fly, then let the parent know it was chosen.
   function chooseFly(fly: string) {
     onChange({ fly })
-    setLastFly({ fly_category: flyCategory, fly, fly_size: catch_.fly_size || '' })
+    onFlyChosen?.({ fly_category: flyCategory, fly, fly_size: catch_.fly_size || '' })
   }
 
-  // Commit a hand-typed fly to the remembered quick-select list.
+  // Commit a hand-typed fly: remember it in the quick-select list and signal the choice.
   function saveCustomFly(value: string) {
     const v = value.trim()
-    if (!v || allFlyOptions.includes(v)) return
-    setCustomFlies(addCustomFly(flyCategory, v))
-    setLastFly({ fly_category: flyCategory, fly: v, fly_size: catch_.fly_size || '' })
+    if (!v) return
+    if (!allFlyOptions.includes(v)) setCustomFlies(addCustomFly(flyCategory, v))
+    onFlyChosen?.({ fly_category: flyCategory, fly: v, fly_size: catch_.fly_size || '' })
   }
 
   async function runIdentify(base64: string, mimeType: string) {
@@ -317,10 +327,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             <button
               key={sz}
               className={`${styles.sizePill} ${catch_.fly_size === sz ? styles.sizePillActive : ''}`}
-              onClick={() => {
-                onChange({ fly_size: sz })
-                if (catch_.fly) setLastFly({ fly_category: flyCategory, fly: catch_.fly, fly_size: sz })
-              }}
+              onClick={() => onChange({ fly_size: sz })}
             >
               #{sz}
             </button>

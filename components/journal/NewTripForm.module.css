@@ -208,6 +208,62 @@
 
 .saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
 
+/* Fly carry-over prompt (edit forms) */
+.flyPromptOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.flyPrompt {
+  background: white;
+  border-radius: 16px;
+  padding: 22px 20px 16px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.flyPromptText {
+  margin: 0 0 18px;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.flyPromptBtns {
+  display: flex;
+  gap: 10px;
+}
+
+.flyPromptNo, .flyPromptYes {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.flyPromptNo {
+  background: white;
+  border: 1.5px solid var(--border);
+  color: var(--ink);
+}
+
+.flyPromptYes {
+  background: var(--teal);
+  border: 1.5px solid var(--teal);
+  color: white;
+}
+
 .spinner {
   width: 20px;
   height: 20px;
