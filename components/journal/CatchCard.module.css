@@ -44,7 +44,6 @@
   position: relative;
   aspect-ratio: 3/4;
   background: linear-gradient(135deg, #1e4d43, #2d6a4f);
-  cursor: pointer;
   overflow: hidden;
 }
 
@@ -135,6 +134,31 @@
 }
 
 .photoPlaceholder span { font-size: 12px; font-family: var(--sans); font-weight: 600; }
+
+.photoChoices {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.choiceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 15px;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.choiceBtn:hover { background: rgba(255,255,255,0.24); }
+.choiceBtn svg { width: 15px; height: 15px; }
 
 /* AI Banner */
 .aiBanner {
