@@ -7,6 +7,7 @@ import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload } from '@/lib/imageUtils'
+import { getLastFly } from '@/lib/prefs'
 import styles from './NewTripForm.module.css'
 
 interface CatchDraft extends Partial<Catch> {
@@ -80,8 +81,12 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
   }, [location, date])
 
   function addCatch() {
+    const last = getLastFly()
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
+      species: 'Unknown',
+      fly: last?.fly || '',
+      fly_category: last?.fly_category || 'Dry Flies',
+      fly_size: last?.fly_size || '',
       date: date, sort_order: prev.length,
     }])
   }

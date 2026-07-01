@@ -8,6 +8,7 @@ import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import BatchPhotoImport from './BatchPhotoImport'
 import { compressForUpload } from '@/lib/imageUtils'
+import { getLastFly } from '@/lib/prefs'
 import { enqueueTrip } from '@/lib/offline/queueClient'
 import { drainQueue } from '@/lib/offline/sync'
 import { notifyQueueChanged } from '@/hooks/usePendingCount'
@@ -97,8 +98,14 @@ export default function NewTripForm() {
   }, [location, date])
 
   function addCatch() {
+    // Default the fly to whatever the last catch used — if you hooked one on a
+    // given fly, odds are you keep fishing it. Cleared when you pick a new fly.
+    const last = getLastFly()
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
+      species: 'Unknown',
+      fly: last?.fly || '',
+      fly_category: last?.fly_category || 'Dry Flies',
+      fly_size: last?.fly_size || '',
       length: undefined, time_caught: undefined, date: date, notes: '', sort_order: prev.length,
     }])
   }

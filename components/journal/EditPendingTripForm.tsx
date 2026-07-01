@@ -5,6 +5,7 @@ import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload } from '@/lib/imageUtils'
+import { getLastFly } from '@/lib/prefs'
 import { getDB } from '@/lib/offline/db'
 import {
   getPendingTrip,
@@ -134,8 +135,12 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
   }, [pendingId])
 
   function addCatch() {
+    const last = getLastFly()
     setCatches(prev => [...prev, {
-      species: 'Unknown', fly: '', fly_category: 'Dry Flies', fly_size: '',
+      species: 'Unknown',
+      fly: last?.fly || '',
+      fly_category: last?.fly_category || 'Dry Flies',
+      fly_size: last?.fly_size || '',
       date: date, sort_order: prev.length, _isNew: true,
     }])
   }

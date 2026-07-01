@@ -1,8 +1,9 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
 import { compressForIdentify, ensureJpegIfHeic } from '@/lib/imageUtils'
+import { getCustomFlies, addCustomFly, setLastFly } from '@/lib/prefs'
 import { FLY_DATA, FLY_SIZES } from '@/types'
 import SpeciesSelect from './SpeciesSelect'
 import styles from './CatchCard.module.css'
@@ -38,6 +39,24 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   const { profile } = useProfile()
   const [flyCategory, setFlyCategory] = useState(catch_.fly_category || 'Dry Flies')
   const [aiResult, setAiResult] = useState('')
+  // Flies the user typed by hand, remembered per category so they show up as
+  // quick-select pills on future catches.
+  const [customFlies, setCustomFlies] = useState<string[]>([])
+  useEffect(() => { setCustomFlies(getCustomFlies(flyCategory)) }, [flyCategory])
+
+  // Pick a fly and remember it — the next catch will default to it.
+  function chooseFly(fly: string) {
+    onChange({ fly })
+    setLastFly({ fly_category: flyCategory, fly, fly_size: catch_.fly_size || '' })
+  }
+
+  // Commit a hand-typed fly to the remembered quick-select list.
+  function saveCustomFly(value: string) {
+    const v = value.trim()
+    if (!v || allFlyOptions.includes(v)) return
+    setCustomFlies(addCustomFly(flyCategory, v))
+    setLastFly({ fly_category: flyCategory, fly: v, fly_size: catch_.fly_size || '' })
+  }
 
   async function runIdentify(base64: string, mimeType: string) {
     try {
@@ -132,6 +151,8 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   }
 
   const flyOptions = FLY_DATA[flyCategory] || FLY_DATA['Dry Flies']
+  // Built-in flies first, then the user's remembered custom flies for this category.
+  const allFlyOptions = [...flyOptions, ...customFlies.filter(f => !flyOptions.includes(f))]
 
   return (
     <div className={styles.card}>
@@ -268,11 +289,11 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
           ))}
         </div>
         <div className={styles.flyPills}>
-          {flyOptions.map(fly => (
+          {allFlyOptions.map(fly => (
             <button
               key={fly}
               className={`${styles.flyPill} ${catch_.fly === fly ? styles.flyPillActive : ''}`}
-              onClick={() => onChange({ fly })}
+              onClick={() => chooseFly(fly)}
             >
               {fly}
             </button>
@@ -280,8 +301,10 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
         </div>
         <input
           className={styles.customFly}
-          value={!flyOptions.includes(catch_.fly || '') ? (catch_.fly || '') : ''}
+          value={!allFlyOptions.includes(catch_.fly || '') ? (catch_.fly || '') : ''}
           onChange={e => onChange({ fly: e.target.value })}
+          onBlur={e => saveCustomFly(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveCustomFly((e.target as HTMLInputElement).value) } }}
           placeholder="Or type a custom fly..."
         />
       </div>
@@ -294,7 +317,10 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             <button
               key={sz}
               className={`${styles.sizePill} ${catch_.fly_size === sz ? styles.sizePillActive : ''}`}
-              onClick={() => onChange({ fly_size: sz })}
+              onClick={() => {
+                onChange({ fly_size: sz })
+                if (catch_.fly) setLastFly({ fly_category: flyCategory, fly: catch_.fly, fly_size: sz })
+              }}
             >
               #{sz}
             </button>

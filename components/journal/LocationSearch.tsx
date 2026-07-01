@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { getRecentLocations, addRecentLocation, type RecentLocation } from '@/lib/prefs'
 import styles from './LocationSearch.module.css'
 
 interface LocationResult {
@@ -11,8 +12,10 @@ interface LocationResult {
   display: string
 }
 
+type Selection = { name: string; lat: number; lng: number; state: string }
+
 interface Props {
-  onSelect: (loc: { name: string; lat: number; lng: number; state: string }) => void
+  onSelect: (loc: Selection) => void
   defaultValue?: string
 }
 
@@ -21,7 +24,17 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
   const [results, setResults] = useState<LocationResult[]>([])
   const [loading, setLoading] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
+  const [recents, setRecents] = useState<RecentLocation[]>([])
   const timerRef = useRef<NodeJS.Timeout>()
+
+  useEffect(() => { setRecents(getRecentLocations()) }, [])
+
+  // Record the pick to the recents list, then hand it up. Placeholder GPS
+  // locations ("Pinned location") are filtered out inside addRecentLocation.
+  function select(loc: Selection) {
+    addRecentLocation(loc)
+    onSelect(loc)
+  }
 
   function handleInput(value: string) {
     setQuery(value)
@@ -55,7 +68,7 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
         // Offline: save coords with a placeholder name. The sync engine will
         // resolve the nearest waterway when the trip is replayed.
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-          onSelect({ name: 'Pinned location', lat, lng, state: '' })
+          select({ name: 'Pinned location', lat, lng, state: '' })
           setGpsLoading(false)
           return
         }
@@ -68,7 +81,7 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
           if (resp.ok) {
             const { name, state } = await resp.json() as { name: string | null; state: string }
             if (name) {
-              onSelect({
+              select({
                 name: state ? `${name}, ${state}` : name,
                 lat, lng,
                 state: state || '',
@@ -80,9 +93,9 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
           // Resolver came back empty — degrade to "Pinned location" so the
           // sync engine / dashboard backfill gets another shot rather than
           // baking a useless "Current Location" string into the trip.
-          onSelect({ name: 'Pinned location', lat, lng, state: '' })
+          select({ name: 'Pinned location', lat, lng, state: '' })
         } catch {
-          onSelect({ name: 'Pinned location', lat, lng, state: '' })
+          select({ name: 'Pinned location', lat, lng, state: '' })
         }
         setGpsLoading(false)
       },
@@ -120,11 +133,26 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
         {loading && <div className={styles.spinner} />}
       </div>
 
+      {/* Recent locations — quick-jump chips so you don't retype places you fish often */}
+      {recents.length > 0 && results.length === 0 && (
+        <div className={styles.recents}>
+          {recents.map((r, i) => (
+            <button key={i} className={styles.recentChip} onClick={() => select(r)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="13" height="13">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              {r.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Results */}
       {results.length > 0 && (
         <div className={styles.results}>
           {results.map((r, i) => (
-            <button key={i} className={styles.result} onClick={() => onSelect(r)}>
+            <button key={i} className={styles.result} onClick={() => select(r)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16" className={styles.pin}>
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                 <circle cx="12" cy="10" r="3"/>
