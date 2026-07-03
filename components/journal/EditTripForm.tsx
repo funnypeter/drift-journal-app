@@ -149,7 +149,8 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
   function onFlyChosen(i: number, sel: { fly: string; fly_category: string; fly_size: string }) {
     const laterDiffer = catches.filter(
-      (c, idx) => idx > i && !c._delete && (c.fly || '') !== sel.fly
+      (c, idx) => idx > i && !c._delete &&
+        ((c.fly || '') !== sel.fly || (c.fly_size || '') !== sel.fly_size)
     ).length
     if (laterDiffer > 0) setFlyPrompt({ index: i, ...sel, count: laterDiffer })
   }
@@ -211,20 +212,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           continue
         }
 
-        // Flower- or no-fish-identified entries are not saved as catches. If
-        // one was already persisted (e.g. from before this rule), delete it
-        // so it doesn't linger.
-        if (c.kind === 'flower' || c.kind === 'none') {
-          if (c.id) {
-            await fetch('/api/catches', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: c.id }),
-            }).catch(() => {})
-          }
-          photoUrls.push(null)
-          continue
-        }
+        // Non-fish photos (flowers / scenery) are still saved so they show in
+        // the gallery, but recorded as "No Fish" so they don't count as catches.
+        const nonFish = c.kind === 'flower' || c.kind === 'none'
 
         let photoUrl = c.photo_url || null
         if (c.photoFile) {
@@ -243,10 +233,13 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
         const catchData = {
           trip_id: trip.id,
-          species: c.species || 'Unknown',
-          length: c.length || null,
-          fly: c.fly || null, fly_category: c.fly_category, fly_size: c.fly_size,
-          time_caught: c.time_caught || null, date: c.date || date,
+          species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+          length: nonFish ? null : (c.length || null),
+          fly: nonFish ? null : (c.fly || null),
+          fly_category: nonFish ? null : c.fly_category,
+          fly_size: nonFish ? null : c.fly_size,
+          time_caught: nonFish ? null : (c.time_caught || null),
+          date: c.date || date,
           notes: c.notes, photo_url: photoUrl, sort_order: i,
           lat: c.lat ?? null,
           lng: c.lng ?? null,
@@ -404,7 +397,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         <div className={styles.flyPromptOverlay} onClick={() => setFlyPrompt(null)}>
           <div className={styles.flyPrompt} onClick={e => e.stopPropagation()}>
             <p className={styles.flyPromptText}>
-              Use <strong>{flyPrompt.fly}</strong> for the {flyPrompt.count} catch{flyPrompt.count > 1 ? 'es' : ''} after this one too?
+              Use <strong>{flyPrompt.fly}{flyPrompt.fly_size ? ` #${flyPrompt.fly_size}` : ''}</strong> for the {flyPrompt.count} catch{flyPrompt.count > 1 ? 'es' : ''} after this one too?
             </p>
             <div className={styles.flyPromptBtns}>
               <button className={styles.flyPromptNo} onClick={() => setFlyPrompt(null)}>No</button>

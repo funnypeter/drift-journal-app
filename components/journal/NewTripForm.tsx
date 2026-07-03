@@ -192,7 +192,9 @@ export default function NewTripForm() {
     const photoUrls: (string | null)[] = []
     for (let i = 0; i < catches.length; i++) {
       const c = catches[i]
-      if (c.kind === 'flower' || c.kind === 'none') { photoUrls.push(null); continue }
+      // Non-fish photos (flowers / scenery) are still saved — they show in the
+      // gallery — but recorded as "No Fish" so they don't count as catches.
+      const nonFish = c.kind === 'flower' || c.kind === 'none'
       let photoUrl: string | null = null
 
       if (c.photoFile) {
@@ -216,12 +218,12 @@ export default function NewTripForm() {
         body: JSON.stringify({
           id: catchIds[i],
           trip_id: tripId,
-          species: c.species || 'Unknown',
-          length: c.length || null,
-          fly: c.fly || null,
-          fly_category: c.fly_category,
-          fly_size: c.fly_size,
-          time_caught: c.time_caught || null,
+          species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+          length: nonFish ? null : (c.length || null),
+          fly: nonFish ? null : (c.fly || null),
+          fly_category: nonFish ? null : c.fly_category,
+          fly_size: nonFish ? null : c.fly_size,
+          time_caught: nonFish ? null : (c.time_caught || null),
           date: c.date || date,
           notes: c.notes,
           photo_url: photoUrl,
@@ -254,7 +256,7 @@ export default function NewTripForm() {
 
     for (let i = 0; i < catches.length; i++) {
       const c = catches[i]
-      if (c.kind === 'flower' || c.kind === 'none') continue
+      const nonFish = c.kind === 'flower' || c.kind === 'none'
       let photoId: string | undefined
       if (c.photoFile) {
         // Try to compress for IDB. Some Android devices fail canvas.toBlob on
@@ -276,19 +278,20 @@ export default function NewTripForm() {
       pendingCatches.push({
         id: catchIds[i],
         trip_id: tripId,
-        species: c.species || 'Unknown',
-        length: c.length,
-        fly: c.fly,
-        fly_category: c.fly_category,
-        fly_size: c.fly_size,
-        time_caught: c.time_caught,
+        species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+        length: nonFish ? undefined : c.length,
+        fly: nonFish ? undefined : c.fly,
+        fly_category: nonFish ? undefined : c.fly_category,
+        fly_size: nonFish ? undefined : c.fly_size,
+        time_caught: nonFish ? undefined : c.time_caught,
         date: c.date || date,
         notes: c.notes,
         sort_order: i,
         lat: c.lat,
         lng: c.lng,
         photoId,
-        needs_identify: !!photoId,
+        // Already identified as non-fish — don't re-run identify on sync.
+        needs_identify: !!photoId && !nonFish,
         syncState: 'queued',
       })
     }

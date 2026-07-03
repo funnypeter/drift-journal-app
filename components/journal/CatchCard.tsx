@@ -58,18 +58,28 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catch_.fly_category])
 
-  // Pick a fly, then let the parent know it was chosen.
+  // Pick a fly. Only offer to carry it forward once a size is also chosen, so
+  // the "apply to later catches" prompt propagates the full fly + size — not an
+  // empty size picked up before the user got to the size row.
   function chooseFly(fly: string) {
     onChange({ fly })
-    onFlyChosen?.({ fly_category: flyCategory, fly, fly_size: catch_.fly_size || '' })
+    if (catch_.fly_size) onFlyChosen?.({ fly_category: flyCategory, fly, fly_size: catch_.fly_size })
   }
 
-  // Commit a hand-typed fly: remember it in the quick-select list and signal the choice.
+  // Commit a hand-typed fly: remember it in the quick-select list and (if a size
+  // is set) signal the choice.
   function saveCustomFly(value: string) {
     const v = value.trim()
     if (!v) return
     if (!allFlyOptions.includes(v)) setCustomFlies(addCustomFly(flyCategory, v))
-    onFlyChosen?.({ fly_category: flyCategory, fly: v, fly_size: catch_.fly_size || '' })
+    if (catch_.fly_size) onFlyChosen?.({ fly_category: flyCategory, fly: v, fly_size: catch_.fly_size })
+  }
+
+  // Pick a size. If a fly is already chosen this completes the fly + size pair,
+  // so now offer to apply it to subsequent catches.
+  function chooseSize(sz: string) {
+    onChange({ fly_size: sz })
+    if (catch_.fly) onFlyChosen?.({ fly_category: flyCategory, fly: catch_.fly, fly_size: sz })
   }
 
   async function runIdentify(base64: string, mimeType: string) {
@@ -279,7 +289,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
             <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
-          No fish detected — this photo won&apos;t be saved as a catch.
+          No fish detected — saved to the gallery, but not counted as a catch.
         </div>
       )}
 
@@ -288,7 +298,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
             <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
-          No fish or flower in this photo — this entry won&apos;t be saved as a catch.
+          No fish or flower in this photo — saved to the gallery, but not counted as a catch.
         </div>
       )}
 
@@ -370,7 +380,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             <button
               key={sz}
               className={`${styles.sizePill} ${catch_.fly_size === sz ? styles.sizePillActive : ''}`}
-              onClick={() => onChange({ fly_size: sz })}
+              onClick={() => chooseSize(sz)}
             >
               #{sz}
             </button>
