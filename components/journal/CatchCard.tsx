@@ -22,6 +22,9 @@ interface CatchDraft {
   photoFile?: File
   photoPreview?: string
   kind?: 'fish' | 'flower' | 'none'
+  // Set when the card is created with a photo already attached (multi-photo
+  // add). Tells the card to run identify itself on mount, once.
+  _autoIdentify?: boolean
 }
 
 interface Props {
@@ -96,6 +99,24 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
       setAiResult(`ID failed: ${err.message}`)
     }
   }
+
+  // When this card was spawned from a multi-photo add, the photo is already
+  // attached but hasn't been identified yet — kick off identify once on mount.
+  const autoIdRan = useRef(false)
+  useEffect(() => {
+    if (!catch_._autoIdentify || autoIdRan.current || !catch_.photoFile) return
+    autoIdRan.current = true
+    onChange({ _autoIdentify: false })
+    ;(async () => {
+      try {
+        const compressed = await compressForIdentify(catch_.photoFile!, 1200, 0.7)
+        runIdentify(compressed.base64, compressed.mimeType)
+      } catch (err: any) {
+        setAiResult(`Photo error: ${err.message}`)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catch_._autoIdentify, catch_.photoFile])
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

@@ -6,7 +6,7 @@ import type { Trip, Catch } from '@/types'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
-import { compressForUpload } from '@/lib/imageUtils'
+import { compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
 import styles from './NewTripForm.module.css'
 
 interface CatchDraft extends Partial<Catch> {
@@ -14,6 +14,7 @@ interface CatchDraft extends Partial<Catch> {
   photoPreview?: string
   kind?: 'fish' | 'flower' | 'none'
   _delete?: boolean
+  _autoIdentify?: boolean
 }
 
 export default function EditTripForm({ trip }: { trip: Trip }) {
@@ -91,6 +92,49 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         date: date, sort_order: prev.length,
       }]
     })
+  }
+
+  // Multi-photo add: each selected image becomes its own catch, which then
+  // self-identifies via the card's auto-identify effect.
+  const multiPhotoRef = useRef<HTMLInputElement>(null)
+  const [addingPhotos, setAddingPhotos] = useState(false)
+
+  async function handleMultiPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    e.target.value = '' // reset so the same photos can be picked again
+    if (!files.length) return
+    setAddingPhotos(true)
+    try {
+      const drafts: CatchDraft[] = []
+      for (const file of files) {
+        try {
+          const usable = await ensureJpegIfHeic(file)
+          drafts.push({
+            species: 'Unknown', date, sort_order: 0,
+            photoFile: usable, photoPreview: URL.createObjectURL(usable),
+            _autoIdentify: true,
+          })
+        } catch (err) {
+          console.warn('Skipping unreadable image in multi-add:', err)
+        }
+      }
+      if (!drafts.length) return
+      setCatches(prev => {
+        const lastFly = [...prev].reverse().find(c => c.fly && !c._delete)
+        return [
+          ...prev,
+          ...drafts.map((d, k) => ({
+            ...d,
+            fly: lastFly?.fly || '',
+            fly_category: lastFly?.fly_category || 'Dry Flies',
+            fly_size: lastFly?.fly_size || '',
+            sort_order: prev.length + k,
+          })),
+        ]
+      })
+    } finally {
+      setAddingPhotos(false)
+    }
   }
 
   function updateCatch(i: number, updates: Partial<CatchDraft>) {
@@ -315,12 +359,34 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
             />
           )
         })}
-        <button className={styles.addCatchBtn} onClick={addCatch}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Add Catch
-        </button>
+        <input
+          ref={multiPhotoRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleMultiPhotos}
+          hidden
+        />
+        <div className={styles.catchAddRow}>
+          <button className={styles.addCatchBtn} onClick={addCatch}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Catch
+          </button>
+          <button className={styles.addCatchBtn} onClick={() => multiPhotoRef.current?.click()} disabled={addingPhotos}>
+            {addingPhotos ? 'Adding…' : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                Add Photos
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && <p className={styles.error}>{error}</p>}

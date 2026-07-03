@@ -168,6 +168,11 @@
 }
 
 .addCatchBtn:hover { background: rgba(30,77,67,0.05); }
+.addCatchBtn:disabled { opacity: 0.6; cursor: default; }
+
+/* Add Catch / Add Photos share a row */
+.catchAddRow { display: flex; gap: 8px; }
+.catchAddRow .addCatchBtn { flex: 1; min-width: 0; }
 
 /* Error */
 .error {
