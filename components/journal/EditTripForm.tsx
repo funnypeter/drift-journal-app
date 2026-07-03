@@ -15,6 +15,7 @@ interface CatchDraft extends Partial<Catch> {
   // `kind` is inherited from Catch ('fish' | 'flower' | 'none' | null).
   _delete?: boolean
   _autoIdentify?: boolean
+  _identifying?: boolean
 }
 
 export default function EditTripForm({ trip }: { trip: Trip }) {
@@ -112,7 +113,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           drafts.push({
             species: 'Unknown', date, sort_order: 0,
             photoFile: usable, photoPreview: URL.createObjectURL(usable),
-            _autoIdentify: true,
+            _autoIdentify: true, _identifying: true,
           })
         } catch (err) {
           console.warn('Skipping unreadable image in multi-add:', err)
@@ -288,6 +289,8 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
   }
 
   const visibleCatches = catches.filter(c => !c._delete)
+  // Any card mid-identify? Save is held until they all settle.
+  const identifying = catches.some(c => c._identifying && !c._delete)
   // Map visible index to actual index for hero
   const visibleToActual = catches.reduce<number[]>((acc, c, i) => {
     if (!c._delete) acc.push(i)
@@ -388,8 +391,8 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      <button className={styles.saveBtn} onClick={save} disabled={saving}>
-        {saving ? <span className={styles.spinner} /> : (
+      <button className={styles.saveBtn} onClick={save} disabled={saving || identifying}>
+        {saving ? <span className={styles.spinner} /> : identifying ? 'Identifying photos…' : (
           <><svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" width="18" height="18">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>

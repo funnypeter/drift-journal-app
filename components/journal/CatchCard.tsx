@@ -25,6 +25,9 @@ interface CatchDraft {
   // Set when the card is created with a photo already attached (multi-photo
   // add). Tells the card to run identify itself on mount, once.
   _autoIdentify?: boolean
+  // True while this card is compressing + identifying a photo. The parent forms
+  // block Save until every card settles, so nothing commits as "Unknown".
+  _identifying?: boolean
 }
 
 interface Props {
@@ -116,13 +119,15 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   useEffect(() => {
     if (!catch_._autoIdentify || autoIdRan.current || !catch_.photoFile) return
     autoIdRan.current = true
-    onChange({ _autoIdentify: false })
+    onChange({ _autoIdentify: false, _identifying: true })
     ;(async () => {
       try {
         const compressed = await compressForIdentify(catch_.photoFile!, 1200, 0.7)
-        runIdentify(compressed.base64, compressed.mimeType)
+        await runIdentify(compressed.base64, compressed.mimeType)
       } catch (err: any) {
         setAiResult(`Photo error: ${err.message}`)
+      } finally {
+        onChange({ _identifying: false })
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,36 +136,43 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    onChange({ _identifying: true })
     try {
       // Convert HEIC → JPEG up-front so the preview renders and save() doesn't re-convert.
       const usable = await ensureJpegIfHeic(file)
       const preview = URL.createObjectURL(usable)
       onChange({ photoFile: usable, photoPreview: preview })
       const compressed = await compressForIdentify(usable, 1200, 0.7)
-      runIdentify(compressed.base64, compressed.mimeType)
+      await runIdentify(compressed.base64, compressed.mimeType)
     } catch (err: any) {
       setAiResult(`Photo error: ${err.message}`)
       onChange({ photoFile: undefined, photoPreview: undefined })
+    } finally {
+      onChange({ _identifying: false })
     }
   }
 
   async function reIdentify() {
     const src = catch_.photoPreview
     if (!src) return
+    onChange({ _identifying: true })
     try {
       // If it's a local blob, re-compress from the file
       if (catch_.photoFile) {
         const compressed = await compressForIdentify(catch_.photoFile, 1200, 0.7)
-        return runIdentify(compressed.base64, compressed.mimeType)
+        await runIdentify(compressed.base64, compressed.mimeType)
+        return
       }
       // Otherwise fetch the existing photo URL and convert to base64
       const resp = await fetch(src)
       const blob = await resp.blob()
       const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })
       const compressed = await compressForIdentify(file, 1200, 0.7)
-      runIdentify(compressed.base64, compressed.mimeType)
+      await runIdentify(compressed.base64, compressed.mimeType)
     } catch (err: any) {
       setAiResult(`ID failed: ${err.message || 'could not load photo'}`)
+    } finally {
+      onChange({ _identifying: false })
     }
   }
 

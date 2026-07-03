@@ -124,21 +124,52 @@ export function useProfile() {
 }
 
 // ── useIdentify ───────────────────────────────────────────────────────────────
+// Batch photo-adds fire many identify() calls at once; Gemini rate-limits bursts,
+// so cap how many hit the API concurrently. Excess calls queue and run as slots
+// free up (module-level so the limit is shared across every card on the page).
+const IDENTIFY_CONCURRENCY = 2
+let identifyActive = 0
+const identifyWaiters: Array<() => void> = []
+
+function acquireIdentifySlot(): Promise<void> {
+  if (identifyActive < IDENTIFY_CONCURRENCY) {
+    identifyActive++
+    return Promise.resolve()
+  }
+  return new Promise<void>(resolve => identifyWaiters.push(resolve))
+}
+
+function releaseIdentifySlot() {
+  const next = identifyWaiters.shift()
+  // Hand the slot straight to a waiter (active count unchanged); otherwise free it.
+  if (next) next()
+  else identifyActive--
+}
+
 export function useIdentify() {
   const [loading, setLoading] = useState(false)
 
   const identify = async (imageBase64: string, mimeType: string, netHoleSize?: number) => {
     setLoading(true)
+    await acquireIdentifySlot()
     try {
-      const resp = await fetch('/api/identify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mimeType, netHoleSize }),
-      })
-      const data = await resp.json()
-      if (!resp.ok) throw new Error(data.detail || data.error || `Identify failed: ${resp.status}`)
-      return data
+      // One retry on a transient rate-limit / server error before giving up.
+      for (let attempt = 0; ; attempt++) {
+        const resp = await fetch('/api/identify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64, mimeType, netHoleSize }),
+        })
+        if ((resp.status === 429 || resp.status >= 500) && attempt === 0) {
+          await new Promise(r => setTimeout(r, 900))
+          continue
+        }
+        const data = await resp.json()
+        if (!resp.ok) throw new Error(data.detail || data.error || `Identify failed: ${resp.status}`)
+        return data
+      }
     } finally {
+      releaseIdentifySlot()
       setLoading(false)
     }
   }

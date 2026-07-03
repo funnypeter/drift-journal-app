@@ -29,6 +29,7 @@ interface CatchDraft extends Omit<Catch, 'id' | 'trip_id' | 'user_id' | 'created
   photoPreview?: string
   kind?: 'fish' | 'flower' | 'none'
   _autoIdentify?: boolean
+  _identifying?: boolean
 }
 
 export default function NewTripForm() {
@@ -132,7 +133,7 @@ export default function NewTripForm() {
             species: 'Unknown', length: undefined, time_caught: undefined,
             date, notes: '', sort_order: 0,
             photoFile: usable, photoPreview: URL.createObjectURL(usable),
-            _autoIdentify: true,
+            _autoIdentify: true, _identifying: true,
           })
         } catch (err) {
           console.warn('Skipping unreadable image in multi-add:', err)
@@ -371,6 +372,9 @@ export default function NewTripForm() {
     }
   }
 
+  // Any card mid-identify? Save is held until they all settle.
+  const identifying = catches.some(c => c._identifying)
+
   if (step === 'batch') {
     return (
       <div className={styles.container}>
@@ -541,9 +545,9 @@ export default function NewTripForm() {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {/* Save */}
-      <button className={styles.saveBtn} onClick={save} disabled={saving}>
-        {saving ? <span className={styles.spinner} /> : (
+      {/* Save — held while any photo is still identifying so nothing commits as "Unknown". */}
+      <button className={styles.saveBtn} onClick={save} disabled={saving || identifying}>
+        {saving ? <span className={styles.spinner} /> : identifying ? 'Identifying photos…' : (
           <>
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" width="18" height="18">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
