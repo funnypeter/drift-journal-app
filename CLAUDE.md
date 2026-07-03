@@ -79,7 +79,9 @@ npm run lint    # ESLint
 
 - **profiles**: id, email, display_name, avatar_url, net_hole_size
 - **trips**: id, user_id, title, date, location, state, lat, lng, flow, water_temp, gauge_height, air_temp, baro, weather, wind, moon, notes, bg_color, hero_photo_url, usgs_site_id, is_public
-- **catches**: id, trip_id, user_id, species, length, fly, fly_category, fly_size, time_caught, date, notes, photo_url, photo_path, ai_confidence, sort_order, lat, lng
+- **catches**: id, trip_id, user_id, species, length, fly, fly_category, fly_size, time_caught, date, notes, photo_url, photo_path, ai_confidence, sort_order, lat, lng, kind
+
+`catches.kind` (added in `005_add_catch_kind.sql`, nullable): `'flower'` = a plant photo (the plant's name is kept in `species`), `'none'` = a no-fish scene (`species = 'No Fish'`). Both show in the Catch Gallery but are excluded from catch totals. Null/`'fish'` = a normal counted catch. Exclusion lives in `lib/catchUtils.ts` `isNoFish` (checks `kind`, falling back to the legacy `species = 'No Fish'` sentinel for rows saved before this column existed). Non-fish photos are created via the multi-photo "Add Photos" picker or single-photo AI identify in `CatchCard`; the save paths null out length/fly fields for them and only send `kind` when a photo was identified (so manual, no-photo catches stay saveable even before the migration is applied).
 
 `catches.lat` / `catches.lng` are optional per-catch GPS pins (distinct from the trip's overall location) — added in `003_add_catch_location.sql`. They drive the fish-icon markers on the journal-entry map; tapping a marker opens the expanded catch view. Set via a "Drop Pin" button on the catch form (captures current GPS; works offline since GPS is hardware).
 

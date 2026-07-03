@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 dist/
+*.tsbuildinfo
 
 # Serwist-generated service worker bundle
 public/sw.js

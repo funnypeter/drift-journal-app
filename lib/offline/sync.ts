@@ -81,6 +81,7 @@ async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch>
       sort_order: c.sort_order,
       lat: c.lat ?? null,
       lng: c.lng ?? null,
+      ...(c.kind !== undefined ? { kind: c.kind } : {}),
     }),
   })
   if (!upResp.ok) throw new Error(`catch upsert failed (${upResp.status})`)
@@ -101,14 +102,18 @@ async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch>
         })
         if (idResp.ok) {
           const result = await idResp.json()
-          if (result.species && result.kind !== 'flower') {
+          if (result.species) {
+            const nonFish = result.kind === 'flower' || result.kind === 'none'
             await jsonFetch('/api/catches', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 id: c.id,
                 species: result.species,
-                length: result.length ? parseFloat(result.length) : c.length,
+                // Plants keep their name but drop the (irrelevant) length and
+                // are marked non-fish so they don't count as catches.
+                length: nonFish ? null : (result.length ? parseFloat(result.length) : c.length),
+                kind: result.kind || 'fish',
               }),
             })
           }

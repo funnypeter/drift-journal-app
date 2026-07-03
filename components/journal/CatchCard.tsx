@@ -289,7 +289,7 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
             <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
-          No fish detected — saved to the gallery, but not counted as a catch.
+          Plant photo — saved to the gallery under its name, but not counted as a catch.
         </div>
       )}
 

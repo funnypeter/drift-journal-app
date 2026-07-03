@@ -12,7 +12,7 @@ import styles from './NewTripForm.module.css'
 interface CatchDraft extends Partial<Catch> {
   photoFile?: File
   photoPreview?: string
-  kind?: 'fish' | 'flower' | 'none'
+  // `kind` is inherited from Catch ('fish' | 'flower' | 'none' | null).
   _delete?: boolean
   _autoIdentify?: boolean
 }
@@ -212,8 +212,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           continue
         }
 
-        // Non-fish photos (flowers / scenery) are still saved so they show in
-        // the gallery, but recorded as "No Fish" so they don't count as catches.
+        // Non-fish photos (a plant, or a no-fish scene) are still saved so they
+        // show in the gallery, but marked via `kind` so they don't count as
+        // catches. Plants keep their identified name in `species`.
         const nonFish = c.kind === 'flower' || c.kind === 'none'
 
         let photoUrl = c.photo_url || null
@@ -233,7 +234,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
         const catchData = {
           trip_id: trip.id,
-          species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+          species: c.species || 'Unknown',
           length: nonFish ? null : (c.length || null),
           fly: nonFish ? null : (c.fly || null),
           fly_category: nonFish ? null : c.fly_category,
@@ -243,6 +244,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           notes: c.notes, photo_url: photoUrl, sort_order: i,
           lat: c.lat ?? null,
           lng: c.lng ?? null,
+          // Only send when identified — keeps manual, no-photo catches saveable
+          // even before the `kind` column migration is applied.
+          ...(c.kind !== undefined ? { kind: c.kind } : {}),
         }
 
         const catchResp = c.id

@@ -52,6 +52,10 @@ export interface Catch {
   photo_url?: string
   photo_path?: string
   ai_confidence?: number
+  // 'fish' (or null) = a counted catch. 'flower' = a plant photo (species holds
+  // the plant name). 'none' = a no-fish scene. Non-'fish' kinds show in the
+  // gallery but don't count toward catch totals — see lib/catchUtils.
+  kind?: 'fish' | 'flower' | 'none' | null
   sort_order: number
   // Optional catch-level pin (the spot this specific fish was caught).
   // Distinct from the trip's overall lat/lng; surfaced as fish markers on

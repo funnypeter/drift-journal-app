@@ -192,8 +192,9 @@ export default function NewTripForm() {
     const photoUrls: (string | null)[] = []
     for (let i = 0; i < catches.length; i++) {
       const c = catches[i]
-      // Non-fish photos (flowers / scenery) are still saved — they show in the
-      // gallery — but recorded as "No Fish" so they don't count as catches.
+      // Non-fish photos (a plant, or a no-fish scene) are still saved so they
+      // show in the gallery, but marked via `kind` so they don't count as
+      // catches. Plants keep their identified name in `species`.
       const nonFish = c.kind === 'flower' || c.kind === 'none'
       let photoUrl: string | null = null
 
@@ -218,7 +219,7 @@ export default function NewTripForm() {
         body: JSON.stringify({
           id: catchIds[i],
           trip_id: tripId,
-          species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+          species: c.species || 'Unknown',
           length: nonFish ? null : (c.length || null),
           fly: nonFish ? null : (c.fly || null),
           fly_category: nonFish ? null : c.fly_category,
@@ -230,6 +231,9 @@ export default function NewTripForm() {
           sort_order: i,
           lat: c.lat ?? null,
           lng: c.lng ?? null,
+          // Only send when a photo was identified — keeps manual, no-photo
+          // catches saveable even before the `kind` column migration is applied.
+          ...(c.kind !== undefined ? { kind: c.kind } : {}),
         }),
       })
       if (!catchResp.ok) {
@@ -278,7 +282,7 @@ export default function NewTripForm() {
       pendingCatches.push({
         id: catchIds[i],
         trip_id: tripId,
-        species: nonFish ? 'No Fish' : (c.species || 'Unknown'),
+        species: c.species || 'Unknown',
         length: nonFish ? undefined : c.length,
         fly: nonFish ? undefined : c.fly,
         fly_category: nonFish ? undefined : c.fly_category,
@@ -290,6 +294,7 @@ export default function NewTripForm() {
         lat: c.lat,
         lng: c.lng,
         photoId,
+        kind: c.kind,
         // Already identified as non-fish — don't re-run identify on sync.
         needs_identify: !!photoId && !nonFish,
         syncState: 'queued',

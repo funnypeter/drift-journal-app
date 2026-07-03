@@ -44,6 +44,8 @@ export interface PendingCatch {
   lat?: number
   lng?: number
   photoId?: string
+  // 'flower'/'none' = a non-fish gallery photo (uncounted); undefined/'fish' = a catch.
+  kind?: 'fish' | 'flower' | 'none'
   needs_identify?: boolean
   serverPhotoUrl?: string | null
   syncState: SyncState
