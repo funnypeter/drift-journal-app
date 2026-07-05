@@ -28,6 +28,7 @@ function getMoonPhase(dateStr: string) {
 export default function PublicTripView({ trip }: { trip: Trip }) {
   const [expandedCatch, setExpandedCatch] = useState<Catch | null>(null)
   const [showFullMap, setShowFullMap] = useState(false)
+  const [returnToFullMap, setReturnToFullMap] = useState(false)
 
   const catches = trip.catches || []
 
@@ -49,9 +50,20 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
   }, [catches])
 
   const handleFullMapCatchClick = useCallback((id: string) => {
+    const c = catches.find(x => x.id === id)
+    if (!c) return // bare Garmin pin — stay on the map
     setShowFullMap(false)
-    openCatchById(id)
-  }, [openCatchById])
+    setReturnToFullMap(true)
+    setExpandedCatch(c)
+  }, [catches])
+
+  const closeCatch = useCallback(() => {
+    setExpandedCatch(null)
+    if (returnToFullMap) {
+      setShowFullMap(true)
+      setReturnToFullMap(false)
+    }
+  }, [returnToFullMap])
 
   const handleExpand = useCallback(() => setShowFullMap(true), [])
 
@@ -163,7 +175,7 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
         const real = realCatches(catches)
         const realIdx = real.findIndex(c => c.id === expandedCatch.id)
         return (
-          <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
+          <div className={styles.overlay} onClick={closeCatch}>
             <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
               {expandedCatch.photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element

@@ -32,6 +32,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullMap, setShowFullMap] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
+  // When a catch is opened by tapping a marker in the expanded map, closing the
+  // catch should return to the expanded map rather than all the way to the page.
+  const [returnToFullMap, setReturnToFullMap] = useState(false)
 
   const catches = trip.catches || []
   // Only catches with a dropped pin get markers — keeps the map uncluttered
@@ -62,9 +65,22 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   }, [catches])
 
   const handleFullMapCatchClick = useCallback((id: string) => {
+    // Ignore taps on bare Garmin pins (ids like "pin-N") — stay on the map.
+    const c = catches.find(x => x.id === id)
+    if (!c) return
     setShowFullMap(false)
-    openCatchById(id)
-  }, [openCatchById])
+    setReturnToFullMap(true)
+    setExpandedCatch(c)
+  }, [catches])
+
+  // Close the expanded catch; reopen the full map if we came from it.
+  const closeCatch = useCallback(() => {
+    setExpandedCatch(null)
+    if (returnToFullMap) {
+      setShowFullMap(true)
+      setReturnToFullMap(false)
+    }
+  }, [returnToFullMap])
 
   const handleExpand = useCallback(() => setShowFullMap(true), [])
 
@@ -210,10 +226,10 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         const real = realCatches(catches)
         const realIdx = real.findIndex(c => c.id === expandedCatch.id)
         return (
-          <div className={styles.overlay} onClick={() => setExpandedCatch(null)}>
+          <div className={styles.overlay} onClick={closeCatch}>
             <div className={styles.expandedCard} onClick={e => e.stopPropagation()}>
               {expandedCatch.photo_url && (
-                <button className={styles.expandedShare} onClick={() => { setExpandedCatch(null); setShareTarget(expandedCatch) }}>
+                <button className={styles.expandedShare} onClick={() => { setExpandedCatch(null); setReturnToFullMap(false); setShareTarget(expandedCatch) }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
