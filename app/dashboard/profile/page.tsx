@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks'
 import MigrateData from '@/components/journal/MigrateData'
+import GarminConnect from '@/components/journal/GarminConnect'
 import styles from './profile.module.css'
 
 export default function ProfilePage() {
@@ -101,6 +102,12 @@ export default function ProfilePage() {
       <button className={styles.saveBtn} onClick={save} disabled={saving}>
         {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save Changes'}
       </button>
+
+      {/* Garmin Connect */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Garmin Connect</h2>
+        <GarminConnect />
+      </section>
 
       {/* Data migration */}
       <section className={styles.section}>

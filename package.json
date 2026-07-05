@@ -9,12 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@garmin/fitsdk": "^21.208.0",
     "@serwist/next": "^9.5.11",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.45.0",
     "@types/mapbox-gl": "^3.4.1",
     "exifreader": "^4.38.1",
+    "fflate": "^0.8.3",
+    "garmin-connect": "^1.6.2",
     "heic2any": "^0.0.4",
     "idb": "^8.0.3",
     "mapbox-gl": "^3.20.0",

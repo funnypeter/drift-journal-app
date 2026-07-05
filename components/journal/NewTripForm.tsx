@@ -7,6 +7,7 @@ import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import BatchPhotoImport from './BatchPhotoImport'
+import GarminActivityPicker, { type GarminImportResult } from './GarminActivityPicker'
 import { compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
 import { enqueueTrip } from '@/lib/offline/queueClient'
 import { drainQueue } from '@/lib/offline/sync'
@@ -36,7 +37,7 @@ export default function NewTripForm() {
   const router = useRouter()
 
   // Step 1: Location, Step 2: Log entry
-  const [step, setStep] = useState<1 | 2 | 'batch'>(1)
+  const [step, setStep] = useState<1 | 2 | 'batch' | 'garmin'>(1)
   const [location, setLocation] = useState<LocationData | null>(null)
 
   // Trip fields
@@ -372,6 +373,33 @@ export default function NewTripForm() {
     }
   }
 
+  // Bring in a Garmin fishing activity: set the trip location/date/title and
+  // drop one catch per marked catch (each carries its GPS → fish map markers).
+  // Lands on step 2 for review; conditions auto-fetch from the location.
+  async function handleGarminImport(result: GarminImportResult) {
+    if (result.lat != null && result.lng != null) {
+      let name = result.title || 'Fishing Trip'
+      let state = ''
+      try {
+        const r = await fetch(`/api/resolve-location?lat=${result.lat}&lng=${result.lng}`).then(res => res.json())
+        if (r?.name) { name = r.name; state = r.state || '' }
+      } catch { /* fall back to the activity name */ }
+      setLocation({ name, lat: result.lat, lng: result.lng, state })
+    }
+    if (result.title) setTitle(result.title)
+    if (result.date) setDate(result.date)
+    setCatches(result.catches.map((c, i) => ({
+      species: 'Unknown',
+      fly: '', fly_category: 'Dry Flies', fly_size: '',
+      length: undefined,
+      time_caught: c.time ? new Date(c.time).toTimeString().slice(0, 5) : undefined,
+      date: result.date || date,
+      notes: '', sort_order: i,
+      lat: c.lat, lng: c.lng,
+    })))
+    setStep(2)
+  }
+
   // Any card mid-identify? Save is held until they all settle.
   const identifying = catches.some(c => c._identifying)
 
@@ -388,6 +416,23 @@ export default function NewTripForm() {
         <div className={styles.stepLabel}>Batch Import</div>
         <h1 className={styles.stepTitle}>Import Photos</h1>
         <BatchPhotoImport onCancel={() => setStep(1)} />
+      </div>
+    )
+  }
+
+  if (step === 'garmin') {
+    return (
+      <div className={styles.container}>
+        <div className={styles.topBar}>
+          <button onClick={() => setStep(1)} className={styles.backBtn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div className={styles.stepLabel}>Import from Garmin</div>
+        <h1 className={styles.stepTitle}>Pick a fishing activity</h1>
+        <GarminActivityPicker onImport={handleGarminImport} />
       </div>
     )
   }
@@ -424,6 +469,15 @@ export default function NewTripForm() {
           Import multiple photos from camera roll
         </button>
         <p className={styles.batchSub}>I'll organize them into trips by date and identify each fish</p>
+
+        <button className={styles.batchBtn} style={{ marginTop: 12 }} onClick={() => setStep('garmin')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3 2"/>
+          </svg>
+          Import a fishing activity from Garmin
+        </button>
+        <p className={styles.batchSub}>Pulls the GPS track and drops your marked catches on the map</p>
       </div>
     )
   }
