@@ -197,7 +197,13 @@ async function syncTrip(trip: PendingTrip): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(tripBody),
   })
-  if (!tripResp.ok) throw new Error(`trip upsert failed (${tripResp.status})`)
+  if (!tripResp.ok) {
+    // Surface the server-side reason (e.g. a missing column) in lastError so the
+    // pending-sync card shows what Postgres actually rejected, not just a code.
+    let detail = ''
+    try { const b = await tripResp.json(); detail = b?.error ? `: ${b.error}` : '' } catch { /* non-JSON */ }
+    throw new Error(`trip upsert failed (${tripResp.status})${detail}`)
+  }
 
   const catches = await getCatchesForTrip(trip.id)
   for (const c of catches) {
