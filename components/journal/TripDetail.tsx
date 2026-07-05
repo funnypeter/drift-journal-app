@@ -11,6 +11,8 @@ import { realCatches, isNoFish } from '@/lib/catchUtils'
 import { formatDate } from '@/lib/dateUtils'
 import styles from './TripDetail.module.css'
 
+import type { CameraView } from './FullMap'
+
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
 const FullMap = dynamic(() => import('./FullMap'), { ssr: false })
 
@@ -35,6 +37,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   // When a catch is opened by tapping a marker in the expanded map, closing the
   // catch should return to the expanded map rather than all the way to the page.
   const [returnToFullMap, setReturnToFullMap] = useState(false)
+  // Remembers the expanded map's camera so reopening it (after a catch) keeps
+  // the same zoom/pan. Reset only when the map is genuinely dismissed.
+  const [fullMapView, setFullMapView] = useState<CameraView | null>(null)
 
   const catches = trip.catches || []
   // Only catches with a dropped pin get markers — keeps the map uncluttered
@@ -83,6 +88,13 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   }, [returnToFullMap])
 
   const handleExpand = useCallback(() => setShowFullMap(true), [])
+
+  // Genuinely dismiss the expanded map (not opening a catch) — forget the camera
+  // so the next expand re-centers on the catches.
+  const closeFullMap = useCallback(() => {
+    setShowFullMap(false)
+    setFullMapView(null)
+  }, [])
 
   async function handleDelete() {
     setDeleting(true)
@@ -263,9 +275,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
 
       {/* Full map modal */}
       {showFullMap && trip.lat && trip.lng && (
-        <div className={styles.overlay} onClick={() => setShowFullMap(false)}>
+        <div className={styles.overlay} onClick={closeFullMap}>
           <div className={styles.fullMapCard} onClick={e => e.stopPropagation()}>
-            <button className={styles.fullMapClose} onClick={() => setShowFullMap(false)}>
+            <button className={styles.fullMapClose} onClick={closeFullMap}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -276,6 +288,8 @@ export default function TripDetail({ trip }: { trip: Trip }) {
               lng={trip.lng}
               catches={mapCatches}
               onCatchClick={handleFullMapCatchClick}
+              initialView={fullMapView ?? undefined}
+              onCameraChange={setFullMapView}
             />
           </div>
         </div>

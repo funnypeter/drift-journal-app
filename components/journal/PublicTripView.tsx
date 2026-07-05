@@ -8,6 +8,8 @@ import { realCatches, isNoFish } from '@/lib/catchUtils'
 import { formatDate } from '@/lib/dateUtils'
 import styles from './TripDetail.module.css'
 
+import type { CameraView } from './FullMap'
+
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
 const FullMap = dynamic(() => import('./FullMap'), { ssr: false })
 
@@ -29,6 +31,7 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
   const [expandedCatch, setExpandedCatch] = useState<Catch | null>(null)
   const [showFullMap, setShowFullMap] = useState(false)
   const [returnToFullMap, setReturnToFullMap] = useState(false)
+  const [fullMapView, setFullMapView] = useState<CameraView | null>(null)
 
   const catches = trip.catches || []
 
@@ -66,6 +69,11 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
   }, [returnToFullMap])
 
   const handleExpand = useCallback(() => setShowFullMap(true), [])
+
+  const closeFullMap = useCallback(() => {
+    setShowFullMap(false)
+    setFullMapView(null)
+  }, [])
 
   return (
     <div className={styles.container}>
@@ -201,9 +209,9 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
       })()}
 
       {showFullMap && trip.lat && trip.lng && (
-        <div className={styles.overlay} onClick={() => setShowFullMap(false)}>
+        <div className={styles.overlay} onClick={closeFullMap}>
           <div className={styles.fullMapCard} onClick={e => e.stopPropagation()}>
-            <button className={styles.fullMapClose} onClick={() => setShowFullMap(false)} aria-label="Close map">
+            <button className={styles.fullMapClose} onClick={closeFullMap} aria-label="Close map">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -214,6 +222,8 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
               lng={trip.lng}
               catches={mapCatches}
               onCatchClick={handleFullMapCatchClick}
+              initialView={fullMapView ?? undefined}
+              onCameraChange={setFullMapView}
             />
           </div>
         </div>

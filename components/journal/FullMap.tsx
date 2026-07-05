@@ -13,11 +13,22 @@ interface CatchPin {
   photoUrl?: string
 }
 
+export interface CameraView {
+  center: [number, number]
+  zoom: number
+  bearing?: number
+  pitch?: number
+}
+
 interface Props {
   lat: number
   lng: number
   catches?: CatchPin[]
   onCatchClick?: (catchId: string) => void
+  // Restore a previous camera (so closing a catch returns to the same zoom/pan).
+  initialView?: CameraView
+  // Reports the camera after any pan/zoom so the parent can persist it.
+  onCameraChange?: (view: CameraView) => void
 }
 
 // Coerce because Supabase returns numeric / decimal columns as strings at
@@ -42,12 +53,14 @@ function centroid(catches: CatchPin[], fallbackLat: number, fallbackLng: number)
 // the focal point. The trip pin shows wherever it falls — usually nearby. No
 // fitBounds, no edge-jamming, and crucially nothing in the effect dep array
 // that could re-fire and yank the camera while the user is interacting.
-export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
+export default function FullMap({ lat, lng, catches, onCatchClick, initialView, onCameraChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const onCatchClickRef = useRef(onCatchClick)
+  const onCameraChangeRef = useRef(onCameraChange)
 
   useEffect(() => { onCatchClickRef.current = onCatchClick }, [onCatchClick])
+  useEffect(() => { onCameraChangeRef.current = onCameraChange }, [onCameraChange])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -61,13 +74,26 @@ export default function FullMap({ lat, lng, catches, onCatchClick }: Props) {
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [focus.lng, focus.lat],
-      zoom: validCatches.length > 0 ? 14 : 13,
+      center: initialView ? initialView.center : [focus.lng, focus.lat],
+      zoom: initialView ? initialView.zoom : (validCatches.length > 0 ? 14 : 13),
+      bearing: initialView?.bearing ?? 0,
+      pitch: initialView?.pitch ?? 0,
       attributionControl: false,
     })
     mapRef.current = map
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+
+    // Report camera after any settle so the parent can restore it on reopen.
+    map.on('moveend', () => {
+      const c = map.getCenter()
+      onCameraChangeRef.current?.({
+        center: [c.lng, c.lat],
+        zoom: map.getZoom(),
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+      })
+    })
 
     new mapboxgl.Marker({ color: '#1e4d43' })
       .setLngLat([tripLng, tripLat])
