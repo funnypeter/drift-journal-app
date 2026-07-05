@@ -42,7 +42,10 @@ export async function garminLogin(email: string, password: string): Promise<Garm
 
 /** Restore a client from stored tokens (no password needed). */
 export function garminClient(tokens: GarminTokens): GarminConnect {
-  const gc = new GarminConnect()
+  // The constructor throws "Missing credentials" on an empty object, but we
+  // authenticate via the stored token (loadToken), not login() — so these
+  // placeholder values are never used. They just satisfy the constructor.
+  const gc = new GarminConnect({ username: 'token', password: 'token' })
   gc.loadToken(tokens.oauth1 as any, tokens.oauth2 as any)
   return gc
 }
