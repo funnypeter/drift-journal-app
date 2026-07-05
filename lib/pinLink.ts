@@ -6,7 +6,7 @@ export interface Linkable {
   capturedAt?: string // photo EXIF wall-clock "YYYY-MM-DDTHH:MM:SS"
 }
 
-const WINDOW_MS = 5 * 60 * 1000
+const WINDOW_MS = 1 * 60 * 1000
 
 // Both times are naive local wall-clock; parse as UTC so the difference is the
 // true wall-clock gap regardless of the runtime's timezone.
@@ -17,7 +17,7 @@ function wallMs(s?: string): number {
 
 /**
  * Link photo catches to Garmin pins by capture time. A catch that has a capture
- * time but no GPS yet adopts the GPS of the nearest-in-time pin within 5 min;
+ * time but no GPS yet adopts the GPS of the nearest-in-time pin within 1 min;
  * each pin is used at most once. Mutates the catches it links (sets lat/lng) and
  * returns the pins that stayed unlinked (still shown as bare map markers).
  */

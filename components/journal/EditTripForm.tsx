@@ -183,7 +183,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     setSaving(true)
     setError('')
     try {
-      // Adopt a Garmin pin's GPS onto any newly added photo within 5 min of it;
+      // Adopt a Garmin pin's GPS onto any newly added photo within 1 min of it;
       // unmatched pins stay on the trip as bare map markers.
       const linkedCatches = catches.map(c => ({ ...c }))
       const remainingPins = linkCatchesToPins(linkedCatches, garminPins)

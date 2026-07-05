@@ -180,7 +180,7 @@ export default function NewTripForm() {
     if (!location) throw new Error('Please select a location')
     const tripTitle = title || `${location.name.split(',')[0]} Trip`
 
-    // Adopt a Garmin pin's GPS onto any photo catch within 5 min of it; pins
+    // Adopt a Garmin pin's GPS onto any photo catch within 1 min of it; pins
     // that don't match a photo stay on the trip as bare map markers.
     const linkedCatches = catches.map(c => ({ ...c }))
     const remainingPins = linkCatchesToPins(linkedCatches, garminPins)
@@ -399,7 +399,7 @@ export default function NewTripForm() {
 
   // Bring in a Garmin fishing activity: set the trip location/date/title and
   // keep its catch GPS as map pins (NOT catch records — catches come only from
-  // photos). Adding photos whose capture time is within 5 min of a pin will
+  // photos). Adding photos whose capture time is within 1 min of a pin will
   // adopt that pin's GPS at save. Lands on step 2 for review.
   async function handleGarminImport(result: GarminImportResult) {
     if (result.lat != null && result.lng != null) {
