@@ -373,6 +373,7 @@ export default function NewTripForm() {
       try {
         await saveOnline(tripId, catchIds)
         router.push('/dashboard')
+        router.refresh() // re-run the dashboard server fetch so the new trip shows immediately
         return
       } catch (err: any) {
         // Network hiccup mid-save: fall through and queue offline so the user
@@ -389,6 +390,7 @@ export default function NewTripForm() {
         drainQueue().catch(() => {})
       }
       router.push('/dashboard')
+      router.refresh()
     } catch (err: any) {
       setError(err.message || 'Failed to save')
       setSaving(false)

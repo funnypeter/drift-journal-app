@@ -295,6 +295,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
       }
 
       router.push(`/trips/${trip.id}`)
+      router.refresh() // re-run the trip server fetch so edits show without a manual reload
     } catch (err: any) {
       setError(err.message)
       setSaving(false)
