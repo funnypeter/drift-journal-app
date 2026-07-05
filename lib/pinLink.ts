@@ -3,6 +3,7 @@ import type { GarminPin } from '@/types'
 export interface Linkable {
   lat?: number
   lng?: number
+  time_caught?: string
   capturedAt?: string // photo EXIF wall-clock "YYYY-MM-DDTHH:MM:SS"
 }
 
@@ -17,9 +18,10 @@ function wallMs(s?: string): number {
 
 /**
  * Link photo catches to Garmin pins by capture time. A catch that has a capture
- * time but no GPS yet adopts the GPS of the nearest-in-time pin within 1 min;
- * each pin is used at most once. Mutates the catches it links (sets lat/lng) and
- * returns the pins that stayed unlinked (still shown as bare map markers).
+ * time but no GPS yet adopts the GPS of the nearest-in-time pin within 1 min,
+ * and (unless the catch already has a time) its Time Caught from the pin's
+ * logged catch moment. Each pin is used at most once. Mutates the catches it
+ * links and returns the pins that stayed unlinked (shown as bare map markers).
  */
 export function linkCatchesToPins<C extends Linkable>(catches: C[], pins: GarminPin[]): GarminPin[] {
   if (!pins.length) return pins
@@ -41,6 +43,10 @@ export function linkCatchesToPins<C extends Linkable>(catches: C[], pins: Garmin
       used.add(best)
       c.lat = pins[best].lat
       c.lng = pins[best].lng
+      // Set Time Caught from the pin's logged catch moment (local wall clock
+      // "YYYY-MM-DDTHH:MM:SS" → "HH:MM"), unless the catch already has a time.
+      const t = pins[best].time
+      if (!c.time_caught && t && t.length >= 16) c.time_caught = t.slice(11, 16)
     }
   }
   return pins.filter((_, i) => !used.has(i))
