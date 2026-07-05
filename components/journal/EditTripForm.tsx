@@ -9,6 +9,7 @@ import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
 import { readCaptureTime } from '@/lib/exif'
 import { linkCatchesToPins } from '@/lib/pinLink'
+import VoiceNotesButton from './VoiceNotesButton'
 import styles from './NewTripForm.module.css'
 
 interface CatchDraft extends Partial<Catch> {
@@ -353,7 +354,10 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
       <ConditionsPanel location={location.lat ? location : null} date={date} conditions={conditions} onChange={setConditions} />
 
       <div className={styles.field}>
-        <label className={styles.label}>Notes</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <label className={styles.label} style={{ marginBottom: 0 }}>Notes</label>
+          <VoiceNotesButton onTranscript={t => setNotes(prev => (prev.trim() ? `${prev.trim()}\n\n${t}` : t))} />
+        </div>
         <textarea className={styles.textarea} value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
       </div>
 
