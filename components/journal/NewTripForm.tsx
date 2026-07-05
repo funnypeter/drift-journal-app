@@ -590,6 +590,7 @@ export default function NewTripForm() {
             onRemove={() => removeCatch(i)}
             isHero={heroIndex === i}
             onSetHero={() => setHeroIndex(i)}
+            pins={garminPins}
           />
         ))}
         <input

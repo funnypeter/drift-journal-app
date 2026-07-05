@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
 import { compressForIdentify, ensureJpegIfHeic } from '@/lib/imageUtils'
 import { readCaptureTime } from '@/lib/exif'
@@ -42,9 +42,12 @@ interface Props {
   // Fired when a fly is definitively chosen (pill tap or committed custom entry),
   // not on every keystroke. Lets the parent offer to apply it to later catches.
   onFlyChosen?: (sel: { fly: string; fly_category: string; fly_size: string }) => void
+  // Garmin catch pins on this trip, so the card can show whether this photo's
+  // capture time will link it to one (see lib/pinLink.ts).
+  pins?: { lat: number; lng: number; time?: string }[]
 }
 
-export default function CatchCard({ index, catch_, onChange, onRemove, isHero, onSetHero, onFlyChosen }: Props) {
+export default function CatchCard({ index, catch_, onChange, onRemove, isHero, onSetHero, onFlyChosen, pins }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)   // gallery / files
   const cameraRef = useRef<HTMLInputElement>(null) // live camera capture
   const { identify, loading: identifying } = useIdentify()
@@ -213,6 +216,21 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
   // Built-in flies first, then the user's remembered custom flies for this category.
   const allFlyOptions = [...flyOptions, ...customFlies.filter(f => !flyOptions.includes(f))]
 
+  // When this trip has Garmin pins, show whether this photo's capture time will
+  // link it to a pin (adopting that pin's GPS + time at save).
+  const captureInfo = useMemo(() => {
+    if (!catch_.photoPreview || !pins || !pins.length) return null
+    if (catch_.lat != null && catch_.lng != null) return null // already located
+    if (!catch_.capturedAt) return { text: 'No capture time in this photo — it won’t link to a Garmin pin', match: false }
+    const cm = Date.parse(catch_.capturedAt.replace(' ', 'T') + 'Z')
+    const match = pins.some(p => p.time && Math.abs(Date.parse(p.time.replace(' ', 'T') + 'Z') - cm) <= 60000)
+    const hhmm = catch_.capturedAt.slice(11, 16)
+    return {
+      text: match ? `Taken ${hhmm} · will link to a Garmin catch pin` : `Taken ${hhmm} · no Garmin pin within 1 min`,
+      match,
+    }
+  }, [catch_.photoPreview, catch_.capturedAt, catch_.lat, catch_.lng, pins])
+
   return (
     <div className={styles.card}>
       {/* Header */}
@@ -316,6 +334,15 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
             <path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
           No fish or flower in this photo — saved to the gallery, but not counted as a catch.
+        </div>
+      )}
+
+      {captureInfo && (
+        <div className={styles.aiBanner} style={{ background: captureInfo.match ? '#dcfce7' : '#f1f5f9', color: captureInfo.match ? '#166534' : '#475569' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+          {captureInfo.text}
         </div>
       )}
 

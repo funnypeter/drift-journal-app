@@ -374,6 +374,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
               isHero={heroIndex === i}
               onSetHero={() => setHeroIndex(i)}
               onFlyChosen={(sel) => onFlyChosen(i, sel)}
+              pins={garminPins}
             />
           )
         })}

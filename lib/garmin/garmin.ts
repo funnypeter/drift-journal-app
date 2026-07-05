@@ -64,21 +64,6 @@ function localDate(a: any): string {
   return s.replace('T', ' ').split(' ')[0]
 }
 
-// Parse a Garmin datetime string as UTC epoch ms (their times carry no zone).
-function asUtcMs(s?: string): number {
-  if (!s) return NaN
-  let t = s.trim().replace(' ', 'T')
-  if (!/[zZ]|[+-]\d\d:?\d\d$/.test(t)) t += 'Z'
-  return Date.parse(t)
-}
-
-// UTC→local offset for this activity, from its own GMT vs local start times.
-// Avoids a lat/lng timezone lookup and correctly reflects DST for the date.
-function localOffsetMs(summary: any): number {
-  const off = asUtcMs(summary?.startTimeLocal) - asUtcMs(summary?.startTimeGMT)
-  return Number.isFinite(off) ? off : 0
-}
-
 /** Recent fishing activities, newest first. */
 export async function listFishingActivities(gc: GarminConnect): Promise<FishingActivity[]> {
   const activities = (await gc.getActivities(0, 40)) as any[]
@@ -117,17 +102,9 @@ export async function importFishingActivity(gc: GarminConnect, activityId: numbe
     try { fs.unlinkSync(zipPath) } catch { /* best effort */ }
   }
 
-  // FIT lap timestamps are UTC; shift to the activity's local wall clock so the
-  // pin time can be compared to a photo's EXIF capture time (also wall clock).
-  const off = localOffsetMs(summary)
-  const pins: GarminPin[] = fitCatches.map(c => {
-    let time = c.time
-    if (time) {
-      const ms = Date.parse(time) + off
-      if (Number.isFinite(ms)) time = new Date(ms).toISOString().slice(0, 19)
-    }
-    return { lat: c.lat, lng: c.lng, time }
-  })
+  // Pin times already come back as trip-local wall clock from the FIT parser
+  // (it derives the offset from the FIT's own local_timestamp).
+  const pins: GarminPin[] = fitCatches.map(c => ({ lat: c.lat, lng: c.lng, time: c.time }))
 
   return {
     activityId,
