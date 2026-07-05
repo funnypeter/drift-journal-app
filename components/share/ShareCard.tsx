@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Trip, Catch, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
+import { formatDate } from '@/lib/dateUtils'
 import styles from './ShareCard.module.css'
 
 // Tier 1 = large italic title line (usually location)
@@ -25,8 +26,7 @@ function buildTags(trip: Trip, catch_: Catch): Tag[] {
 
   // Tier 3 — conditions pills
   if (trip.date) {
-    const d = new Date(trip.date)
-    tags.push({ key: 'date', label: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(), on: false, tier: 3 })
+    tags.push({ key: 'date', label: formatDate(trip.date).toUpperCase(), on: false, tier: 3 })
   }
   if (trip.weather) tags.push({ key: 'weather', label: trip.weather, on: false, tier: 3 })
   if (trip.moon) tags.push({ key: 'moon', label: trip.moon, on: false, tier: 3 })

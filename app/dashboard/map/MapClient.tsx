@@ -6,6 +6,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Trip } from '@/types'
 import { realCatches } from '@/lib/catchUtils'
+import { formatDate } from '@/lib/dateUtils'
 import styles from './map.module.css'
 
 export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
@@ -77,7 +78,7 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
       // Close any open popup first.
       popupsRef.current.forEach(p => p.remove())
       const catchCount = realCatches(t.catches || []).length
-      const dateStr = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+      const dateStr = formatDate(t.date, { month: 'short', day: 'numeric' }).toUpperCase()
       const popup = new mapboxgl.Popup({
         offset: 30,
         closeButton: false,
@@ -153,7 +154,7 @@ export default function MapClient({ initialTrips }: { initialTrips: Trip[] }) {
             </div>
             <div className={styles.cardRight}>
               <div className={styles.cardDate}>
-                {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {formatDate(t.date, { month: 'short', day: 'numeric' })}
               </div>
               <div className={styles.cardCatches}>
                 {(() => {

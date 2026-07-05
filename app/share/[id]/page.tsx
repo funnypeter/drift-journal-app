@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PublicTripView from '@/components/journal/PublicTripView'
+import { formatDate } from '@/lib/dateUtils'
 import type { Trip } from '@/types'
 
 // Public share route — bypasses auth (see middleware.ts) and queries with the
@@ -42,7 +43,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   if (!trip) return { title: 'Drift Journal' }
   return {
     title: `${trip.title} — Drift Journal`,
-    description: `${trip.location || ''} · ${new Date(trip.date).toLocaleDateString()}`.trim(),
+    description: `${trip.location || ''} · ${formatDate(trip.date, { year: 'numeric', month: 'numeric', day: 'numeric' })}`.trim(),
     openGraph: {
       title: trip.title,
       description: trip.location || undefined,

@@ -8,6 +8,7 @@ import { SYNC_COMPLETE_EVENT } from '@/lib/offline/sync'
 import EditPendingTripForm from '@/components/journal/EditPendingTripForm'
 import type { PendingTrip } from '@/lib/offline/db'
 import type { Trip } from '@/types'
+import { formatDate } from '@/lib/dateUtils'
 import styles from './feed.module.css'
 
 // Trips that synced with a placeholder name (because the geocoder failed at
@@ -139,7 +140,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
               >
                 <div className={styles.pendingTitle}>{p.title}</div>
                 <div className={styles.pendingMeta}>
-                  {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {formatDate(p.date, { month: 'short', day: 'numeric' })}
                   {' · '}
                   {p.location?.split(',')[0] || 'No location'}
                   {p.syncState === 'error' && <span className={styles.pendingError}> · failed, will retry</span>}
@@ -207,7 +208,7 @@ export default function FeedClient({ initialTrips }: { initialTrips: Trip[] }) {
                   <h2 className={styles.tripTitle}>{trip.title}</h2>
                   <div className={styles.tripMeta}>
                     <span className={styles.tripDate}>
-                      {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
+                      {formatDate(trip.date).toUpperCase()}
                     </span>
                     {trip.location && (
                       <>

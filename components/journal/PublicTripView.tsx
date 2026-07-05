@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
 import { realCatches, isNoFish } from '@/lib/catchUtils'
+import { formatDate } from '@/lib/dateUtils'
 import styles from './TripDetail.module.css'
 
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
@@ -71,7 +72,7 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
       </div>
 
       <div className={styles.dateLabel}>
-        {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
+        {formatDate(trip.date).toUpperCase()}
       </div>
       <h1 className={styles.title}>{trip.title}</h1>
       <div className={styles.locationLine}>
