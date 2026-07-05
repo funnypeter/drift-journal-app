@@ -35,10 +35,10 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
     () => [
       ...catches
         .filter(c => c.lat != null && c.lng != null)
-        .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
+        .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species, photoUrl: c.photo_url || undefined })),
       ...(trip.garmin_pins || [])
         .filter(p => p.lat != null && p.lng != null)
-        .map((p, i) => ({ id: `pin-${i}`, lat: p.lat, lng: p.lng, species: undefined as string | undefined })),
+        .map((p, i) => ({ id: `pin-${i}`, lat: p.lat, lng: p.lng, species: undefined as string | undefined, photoUrl: undefined as string | undefined })),
     ],
     [catches, trip.garmin_pins]
   )

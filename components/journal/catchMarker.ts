@@ -16,7 +16,7 @@ const FISH_SVG = `
   <circle cx="10" cy="15" r="1.2" fill="#0e2a26" stroke="none"/>
 </svg>`
 
-export function makeCatchMarkerEl(species?: string): HTMLDivElement {
+export function makeCatchMarkerEl(species?: string, photoUrl?: string): HTMLDivElement {
   // Outer hit target — transparent ring around the visible marker so finger
   // taps within ~44px land on the element instead of falling through to the
   // map canvas below.
@@ -37,7 +37,6 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   const bubble = document.createElement('div')
   bubble.style.background = '#1e4d43'
   bubble.style.borderRadius = '999px'
-  bubble.style.padding = '5px 5px 3px'
   bubble.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)'
   bubble.style.border = '2px solid white'
   bubble.style.display = 'flex'
@@ -45,7 +44,31 @@ export function makeCatchMarkerEl(species?: string): HTMLDivElement {
   bubble.style.justifyContent = 'center'
   bubble.style.transition = 'transform 120ms ease'
   bubble.style.transformOrigin = 'center'
-  bubble.innerHTML = FISH_SVG
+  bubble.style.overflow = 'hidden'
+
+  if (photoUrl) {
+    // Catch photo → circular thumbnail marker instead of the fish icon.
+    bubble.style.width = '40px'
+    bubble.style.height = '40px'
+    const img = document.createElement('img')
+    img.src = photoUrl
+    img.alt = species || ''
+    img.style.width = '100%'
+    img.style.height = '100%'
+    img.style.objectFit = 'cover'
+    img.style.display = 'block'
+    // If the thumbnail can't load, fall back to the fish icon.
+    img.onerror = () => {
+      bubble.style.width = ''
+      bubble.style.height = ''
+      bubble.style.padding = '5px 5px 3px'
+      bubble.innerHTML = FISH_SVG
+    }
+    bubble.appendChild(img)
+  } else {
+    bubble.style.padding = '5px 5px 3px'
+    bubble.innerHTML = FISH_SVG
+  }
 
   const tail = document.createElement('div')
   tail.style.width = '0'

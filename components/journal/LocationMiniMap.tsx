@@ -11,6 +11,7 @@ interface CatchPin {
   lat: number
   lng: number
   species?: string
+  photoUrl?: string
 }
 
 interface Props {
@@ -77,7 +78,7 @@ export default function LocationMiniMap({ lat, lng, catches, onCatchClick, onExp
 
     const catchMarkers: mapboxgl.Marker[] = []
     for (const c of validCatches) {
-      const el = makeCatchMarkerEl(c.species)
+      const el = makeCatchMarkerEl(c.species, c.photoUrl)
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         onCatchClickRef.current?.(c.id)
