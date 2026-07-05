@@ -40,11 +40,19 @@ export default function TripDetail({ trip }: { trip: Trip }) {
   // would tear down + rebuild the map, and the rebuilt map's fitBounds ran
   // against a container that wasn't fully sized yet — visible as the fish
   // marker "jumping" to a corner before the card actually opened.
+  // Catch markers (from photo catches with GPS) plus bare Garmin pins that
+  // never matched a photo. Both draw the same fish icon; pin ids are ignored by
+  // openCatchById so tapping a bare pin is a no-op.
   const mapCatches = useMemo(
-    () => catches
-      .filter(c => c.lat != null && c.lng != null)
-      .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
-    [catches]
+    () => [
+      ...catches
+        .filter(c => c.lat != null && c.lng != null)
+        .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
+      ...(trip.garmin_pins || [])
+        .filter(p => p.lat != null && p.lng != null)
+        .map((p, i) => ({ id: `pin-${i}`, lat: p.lat, lng: p.lng, species: undefined as string | undefined })),
+    ],
+    [catches, trip.garmin_pins]
   )
 
   const openCatchById = useCallback((id: string) => {

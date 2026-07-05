@@ -2,16 +2,19 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Trip, Catch } from '@/types'
+import type { Trip, Catch, GarminPin } from '@/types'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
+import { readCaptureTime } from '@/lib/exif'
+import { linkCatchesToPins } from '@/lib/pinLink'
 import styles from './NewTripForm.module.css'
 
 interface CatchDraft extends Partial<Catch> {
   photoFile?: File
   photoPreview?: string
+  capturedAt?: string
   // `kind` is inherited from Catch ('fish' | 'flower' | 'none' | null).
   _delete?: boolean
   _autoIdentify?: boolean
@@ -39,6 +42,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
       photoPreview: c.photo_url || undefined,
     }))
   )
+  const [garminPins, setGarminPins] = useState<GarminPin[]>(trip.garmin_pins || [])
   // Find current hero index
   const initialHero = (trip.catches || []).findIndex(c => c.photo_url === trip.hero_photo_url)
   const [heroIndex, setHeroIndex] = useState<number>(initialHero >= 0 ? initialHero : 0)
@@ -109,9 +113,10 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
       const drafts: CatchDraft[] = []
       for (const file of files) {
         try {
+          const capturedAt = await readCaptureTime(file)
           const usable = await ensureJpegIfHeic(file)
           drafts.push({
-            species: 'Unknown', date, sort_order: 0,
+            species: 'Unknown', date, sort_order: 0, capturedAt,
             photoFile: usable, photoPreview: URL.createObjectURL(usable),
             _autoIdentify: true, _identifying: true,
           })
@@ -178,6 +183,11 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     setSaving(true)
     setError('')
     try {
+      // Adopt a Garmin pin's GPS onto any newly added photo within 5 min of it;
+      // unmatched pins stay on the trip as bare map markers.
+      const linkedCatches = catches.map(c => ({ ...c }))
+      const remainingPins = linkCatchesToPins(linkedCatches, garminPins)
+
       // Update trip via API
       const tripResp = await fetch(`/api/trips/${trip.id}`, {
         method: 'PATCH',
@@ -187,6 +197,9 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
           location: location.name, state: location.state,
           lat: location.lat, lng: location.lng,
           ...conditions,
+          // Only send when this trip has (or had) pins, so editing a normal trip
+          // stays saveable before the garmin_pins column migration (007) lands.
+          ...((garminPins.length || remainingPins.length) ? { garmin_pins: remainingPins } : {}),
         }),
       })
       if (!tripResp.ok) {
@@ -196,8 +209,8 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
 
       // Handle catches
       const photoUrls: (string | null)[] = []
-      for (let i = 0; i < catches.length; i++) {
-        const c = catches[i]
+      for (let i = 0; i < linkedCatches.length; i++) {
+        const c = linkedCatches[i]
 
         if (c._delete && c.id) {
           const delResp = await fetch('/api/catches', {

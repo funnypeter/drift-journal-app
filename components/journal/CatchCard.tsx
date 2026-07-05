@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { useIdentify, useProfile } from '@/hooks'
 import { compressForIdentify, ensureJpegIfHeic } from '@/lib/imageUtils'
+import { readCaptureTime } from '@/lib/exif'
 import { getCustomFlies, addCustomFly } from '@/lib/prefs'
 import { FLY_DATA, FLY_SIZES } from '@/types'
 import SpeciesSelect from './SpeciesSelect'
@@ -22,6 +23,7 @@ interface CatchDraft {
   photoFile?: File
   photoPreview?: string
   kind?: 'fish' | 'flower' | 'none'
+  capturedAt?: string
   // Set when the card is created with a photo already attached (multi-photo
   // add). Tells the card to run identify itself on mount, once.
   _autoIdentify?: boolean
@@ -138,10 +140,13 @@ export default function CatchCard({ index, catch_, onChange, onRemove, isHero, o
     if (!file) return
     onChange({ _identifying: true })
     try {
+      // Read EXIF capture time from the original file (before compression strips
+      // it) so it can be matched to a Garmin catch pin.
+      const capturedAt = await readCaptureTime(file)
       // Convert HEIC → JPEG up-front so the preview renders and save() doesn't re-convert.
       const usable = await ensureJpegIfHeic(file)
       const preview = URL.createObjectURL(usable)
-      onChange({ photoFile: usable, photoPreview: preview })
+      onChange({ photoFile: usable, photoPreview: preview, capturedAt })
       const compressed = await compressForIdentify(usable, 1200, 0.7)
       await runIdentify(compressed.base64, compressed.mimeType)
     } catch (err: any) {

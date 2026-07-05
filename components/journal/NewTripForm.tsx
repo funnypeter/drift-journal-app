@@ -9,11 +9,13 @@ import ConditionsPanel from './ConditionsPanel'
 import BatchPhotoImport from './BatchPhotoImport'
 import GarminActivityPicker, { type GarminImportResult } from './GarminActivityPicker'
 import { compressForUpload, ensureJpegIfHeic } from '@/lib/imageUtils'
+import { readCaptureTime } from '@/lib/exif'
+import { linkCatchesToPins } from '@/lib/pinLink'
 import { enqueueTrip } from '@/lib/offline/queueClient'
 import { drainQueue } from '@/lib/offline/sync'
 import { notifyQueueChanged } from '@/hooks/usePendingCount'
 import type { PendingCatch, PendingPhoto, PendingTrip } from '@/lib/offline/db'
-import type { Catch } from '@/types'
+import type { Catch, GarminPin } from '@/types'
 import styles from './NewTripForm.module.css'
 
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
@@ -29,6 +31,8 @@ interface CatchDraft extends Omit<Catch, 'id' | 'trip_id' | 'user_id' | 'created
   photoFile?: File
   photoPreview?: string
   kind?: 'fish' | 'flower' | 'none'
+  // Photo capture time (EXIF wall-clock) — used to match a Garmin catch pin.
+  capturedAt?: string
   _autoIdentify?: boolean
   _identifying?: boolean
 }
@@ -51,6 +55,8 @@ export default function NewTripForm() {
   // Catches
   const [catches, setCatches] = useState<CatchDraft[]>([])
   const [heroIndex, setHeroIndex] = useState<number>(0)
+  // GPS pins from an imported Garmin activity (not catches — bare map markers).
+  const [garminPins, setGarminPins] = useState<GarminPin[]>([])
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -129,10 +135,13 @@ export default function NewTripForm() {
       const drafts: CatchDraft[] = []
       for (const file of files) {
         try {
+          // Read EXIF capture time from the ORIGINAL file (before compression
+          // strips it) so it can be matched to a Garmin catch pin.
+          const capturedAt = await readCaptureTime(file)
           const usable = await ensureJpegIfHeic(file)
           drafts.push({
             species: 'Unknown', length: undefined, time_caught: undefined,
-            date, notes: '', sort_order: 0,
+            date, notes: '', sort_order: 0, capturedAt,
             photoFile: usable, photoPreview: URL.createObjectURL(usable),
             _autoIdentify: true, _identifying: true,
           })
@@ -170,6 +179,12 @@ export default function NewTripForm() {
   async function saveOnline(tripId: string, catchIds: string[]): Promise<void> {
     if (!location) throw new Error('Please select a location')
     const tripTitle = title || `${location.name.split(',')[0]} Trip`
+
+    // Adopt a Garmin pin's GPS onto any photo catch within 5 min of it; pins
+    // that don't match a photo stay on the trip as bare map markers.
+    const linkedCatches = catches.map(c => ({ ...c }))
+    const remainingPins = linkCatchesToPins(linkedCatches, garminPins)
+
     const tripResp = await fetch('/api/trips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -183,6 +198,9 @@ export default function NewTripForm() {
         lng: location.lng,
         notes,
         ...conditions,
+        // Only send when there are pins — keeps normal trips saveable before the
+        // garmin_pins column migration (007) is applied.
+        ...(remainingPins.length ? { garmin_pins: remainingPins } : {}),
         bg_color: `linear-gradient(160deg,${randomDark()},${randomDark()})`,
       }),
     })
@@ -192,8 +210,8 @@ export default function NewTripForm() {
     }
 
     const photoUrls: (string | null)[] = []
-    for (let i = 0; i < catches.length; i++) {
-      const c = catches[i]
+    for (let i = 0; i < linkedCatches.length; i++) {
+      const c = linkedCatches[i]
       // Non-fish photos (a plant, or a no-fish scene) are still saved so they
       // show in the gallery, but marked via `kind` so they don't count as
       // catches. Plants keep their identified name in `species`.
@@ -260,8 +278,11 @@ export default function NewTripForm() {
     const photos: PendingPhoto[] = []
     const pendingCatches: PendingCatch[] = []
 
-    for (let i = 0; i < catches.length; i++) {
-      const c = catches[i]
+    const linkedCatches = catches.map(c => ({ ...c }))
+    const remainingPins = linkCatchesToPins(linkedCatches, garminPins)
+
+    for (let i = 0; i < linkedCatches.length; i++) {
+      const c = linkedCatches[i]
       const nonFish = c.kind === 'flower' || c.kind === 'none'
       let photoId: string | undefined
       if (c.photoFile) {
@@ -326,6 +347,7 @@ export default function NewTripForm() {
       weather: conditions.weather,
       wind: conditions.wind,
       moon: conditions.moon,
+      garmin_pins: remainingPins.length ? remainingPins : undefined,
       heroCatchId,
       needs_geocode: needsGeocode,
       needs_conditions: needsConditions,
@@ -374,8 +396,9 @@ export default function NewTripForm() {
   }
 
   // Bring in a Garmin fishing activity: set the trip location/date/title and
-  // drop one catch per marked catch (each carries its GPS → fish map markers).
-  // Lands on step 2 for review; conditions auto-fetch from the location.
+  // keep its catch GPS as map pins (NOT catch records — catches come only from
+  // photos). Adding photos whose capture time is within 5 min of a pin will
+  // adopt that pin's GPS at save. Lands on step 2 for review.
   async function handleGarminImport(result: GarminImportResult) {
     if (result.lat != null && result.lng != null) {
       let name = result.title || 'Fishing Trip'
@@ -388,15 +411,7 @@ export default function NewTripForm() {
     }
     if (result.title) setTitle(result.title)
     if (result.date) setDate(result.date)
-    setCatches(result.catches.map((c, i) => ({
-      species: 'Unknown',
-      fly: '', fly_category: 'Dry Flies', fly_size: '',
-      length: undefined,
-      time_caught: c.time ? new Date(c.time).toTimeString().slice(0, 5) : undefined,
-      date: result.date || date,
-      notes: '', sort_order: i,
-      lat: c.lat, lng: c.lng,
-    })))
+    setGarminPins(result.pins.filter(p => p.lat != null && p.lng != null))
     setStep(2)
   }
 

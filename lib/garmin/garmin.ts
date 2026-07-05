@@ -22,13 +22,19 @@ export interface FishingActivity {
   lng: number | null
 }
 
+export interface GarminPin {
+  lat: number
+  lng: number
+  time?: string // trip-local wall clock "YYYY-MM-DDTHH:MM:SS" (for EXIF matching)
+}
+
 export interface ImportedActivity {
   activityId: number
   title: string
   date: string // YYYY-MM-DD
   lat: number | null
   lng: number | null
-  catches: FitCatch[]
+  pins: GarminPin[]
 }
 
 /** Log in with email + password and return the session token to persist. */
@@ -58,6 +64,21 @@ function localDate(a: any): string {
   return s.replace('T', ' ').split(' ')[0]
 }
 
+// Parse a Garmin datetime string as UTC epoch ms (their times carry no zone).
+function asUtcMs(s?: string): number {
+  if (!s) return NaN
+  let t = s.trim().replace(' ', 'T')
+  if (!/[zZ]|[+-]\d\d:?\d\d$/.test(t)) t += 'Z'
+  return Date.parse(t)
+}
+
+// UTC→local offset for this activity, from its own GMT vs local start times.
+// Avoids a lat/lng timezone lookup and correctly reflects DST for the date.
+function localOffsetMs(summary: any): number {
+  const off = asUtcMs(summary?.startTimeLocal) - asUtcMs(summary?.startTimeGMT)
+  return Number.isFinite(off) ? off : 0
+}
+
 /** Recent fishing activities, newest first. */
 export async function listFishingActivities(gc: GarminConnect): Promise<FishingActivity[]> {
   const activities = (await gc.getActivities(0, 40)) as any[]
@@ -80,7 +101,7 @@ export async function importFishingActivity(gc: GarminConnect, activityId: numbe
   const dir = os.tmpdir()
   await gc.downloadOriginalActivityData({ activityId }, dir, 'zip')
   const zipPath = path.join(dir, `${activityId}.zip`)
-  let catches: FitCatch[] = []
+  let fitCatches: FitCatch[] = []
   let fitStartLat: number | null = null
   let fitStartLng: number | null = null
   try {
@@ -89,12 +110,24 @@ export async function importFishingActivity(gc: GarminConnect, activityId: numbe
     const fitName = Object.keys(entries).find(n => n.toLowerCase().endsWith('.fit'))
     if (!fitName) throw new Error('No FIT file inside the Garmin export')
     const parsed = parseFitActivity(entries[fitName])
-    catches = parsed.catches
+    fitCatches = parsed.catches
     fitStartLat = parsed.startLat
     fitStartLng = parsed.startLng
   } finally {
     try { fs.unlinkSync(zipPath) } catch { /* best effort */ }
   }
+
+  // FIT lap timestamps are UTC; shift to the activity's local wall clock so the
+  // pin time can be compared to a photo's EXIF capture time (also wall clock).
+  const off = localOffsetMs(summary)
+  const pins: GarminPin[] = fitCatches.map(c => {
+    let time = c.time
+    if (time) {
+      const ms = Date.parse(time) + off
+      if (Number.isFinite(ms)) time = new Date(ms).toISOString().slice(0, 19)
+    }
+    return { lat: c.lat, lng: c.lng, time }
+  })
 
   return {
     activityId,
@@ -102,6 +135,6 @@ export async function importFishingActivity(gc: GarminConnect, activityId: numbe
     date: localDate(summary),
     lat: summary?.startLatitude ?? fitStartLat,
     lng: summary?.startLongitude ?? fitStartLng,
-    catches,
+    pins,
   }
 }

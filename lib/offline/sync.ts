@@ -190,6 +190,7 @@ async function syncTrip(trip: PendingTrip): Promise<void> {
     weather: trip.weather,
     wind: trip.wind,
     moon: trip.moon,
+    garmin_pins: trip.garmin_pins,
   }
   const tripResp = await jsonFetch('/api/trips', {
     method: 'POST',

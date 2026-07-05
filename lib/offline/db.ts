@@ -21,6 +21,7 @@ export interface PendingTrip {
   weather?: string
   wind?: string
   moon?: string
+  garmin_pins?: { lat: number; lng: number; time?: string }[]
   heroCatchId?: string | null
   needs_geocode?: boolean
   needs_conditions?: boolean

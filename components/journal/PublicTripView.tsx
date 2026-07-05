@@ -31,10 +31,15 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
   const catches = trip.catches || []
 
   const mapCatches = useMemo(
-    () => catches
-      .filter(c => c.lat != null && c.lng != null)
-      .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
-    [catches]
+    () => [
+      ...catches
+        .filter(c => c.lat != null && c.lng != null)
+        .map(c => ({ id: c.id, lat: c.lat as number, lng: c.lng as number, species: c.species })),
+      ...(trip.garmin_pins || [])
+        .filter(p => p.lat != null && p.lng != null)
+        .map((p, i) => ({ id: `pin-${i}`, lat: p.lat, lng: p.lng, species: undefined as string | undefined })),
+    ],
+    [catches, trip.garmin_pins]
   )
 
   const openCatchById = useCallback((id: string) => {

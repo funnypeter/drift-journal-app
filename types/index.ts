@@ -32,9 +32,19 @@ export interface Trip {
   // Owner-controlled flag. When true, anyone can view the trip via /share/<id>
   // without authenticating — see RLS in migration 004.
   is_public?: boolean
+  // GPS pins from an imported Garmin fishing activity ("Log Catch" presses).
+  // Not catches — they render as bare fish markers on the map. `time` is the
+  // catch moment in the trip's local wall-clock (for EXIF photo matching).
+  garmin_pins?: GarminPin[] | null
   created_at: string
   updated_at: string
   catches?: Catch[]
+}
+
+export interface GarminPin {
+  lat: number
+  lng: number
+  time?: string
 }
 
 export interface Catch {

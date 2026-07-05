@@ -10,7 +10,7 @@ export interface GarminImportResult {
   date: string
   lat: number | null
   lng: number | null
-  catches: { lat: number; lng: number; time?: string }[]
+  pins: { lat: number; lng: number; time?: string }[]
 }
 
 interface Activity {
