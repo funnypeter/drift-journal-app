@@ -22,8 +22,9 @@ export async function POST(req: NextRequest) {
     const result = await importFishingActivity(gc, Number(activityId))
     return NextResponse.json(result)
   } catch (err: any) {
+    console.error('[garmin/import]', err)
     return NextResponse.json(
-      { error: err?.message || 'Failed to import activity' },
+      { error: 'Failed to import activity', detail: err?.message || String(err) },
       { status: 502 }
     )
   }

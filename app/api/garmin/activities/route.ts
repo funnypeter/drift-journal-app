@@ -19,10 +19,17 @@ export async function GET() {
     const activities = await listFishingActivities(gc)
     return NextResponse.json({ activities })
   } catch (err: any) {
-    // Token likely expired / revoked — tell the client to reconnect.
+    console.error('[garmin/activities]', err)
+    const detail = err?.message || String(err)
+    // 401 from Garmin means the stored session is no longer valid → reconnect.
+    const isAuth = /401|unauthor/i.test(detail)
     return NextResponse.json(
-      { error: 'Garmin session expired — reconnect in Settings', code: 'reconnect' },
-      { status: 409 }
+      {
+        error: isAuth ? 'Garmin session expired — reconnect in Settings' : 'Could not load Garmin activities',
+        detail,
+        code: isAuth ? 'reconnect' : undefined,
+      },
+      { status: isAuth ? 409 : 502 }
     )
   }
 }

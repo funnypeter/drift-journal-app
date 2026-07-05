@@ -44,7 +44,7 @@ export default function GarminActivityPicker({
         const data = await resp.json()
         if (!resp.ok) {
           if (data.code === 'reconnect') { setPhase('disconnected'); return }
-          throw new Error(data.error || 'Could not load activities')
+          throw new Error(data.detail || data.error || 'Could not load activities')
         }
         setActivities(data.activities || [])
         setPhase('list')
@@ -66,7 +66,7 @@ export default function GarminActivityPicker({
         body: JSON.stringify({ activityId }),
       })
       const data = await resp.json()
-      if (!resp.ok) throw new Error(data.error || 'Import failed')
+      if (!resp.ok) throw new Error(data.detail || data.error || 'Import failed')
       onImport(data as GarminImportResult)
     } catch (err: any) {
       setError(err.message || 'Import failed')
