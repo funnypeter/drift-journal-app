@@ -26,13 +26,23 @@ export function makeCatchMarkerEl(species?: string, photoUrl?: string): HTMLDivE
   // CSS transform we set here clobbers that and the marker teleports to
   // (0, 0) of the map container — i.e. the top-left corner. Hover/press
   // effects go on the INNER bubble instead.
+  //
+  // Equally important: no `margin`, and no padding on the BOTTOM. The marker
+  // is anchored 'bottom', which Mapbox implements as
+  // `translate(-50%, -100%)` — a percentage of this element's *border box* —
+  // and `.mapboxgl-marker` is `position: absolute; top: 0; left: 0`, so a
+  // margin shifts the element too. Bottom padding would push the tail tip
+  // above the coordinate; a negative margin would drag the whole marker up
+  // and left. Both are fixed *pixel* errors, so they're invisible when zoomed
+  // in but translate to hundreds of metres on the zoom-13 mini map — which is
+  // exactly how the fish ended up on the hillside instead of in the river.
+  // Keeping padding-bottom at 0 makes the wrap's bottom edge the tail tip.
   const wrap = document.createElement('div')
   wrap.style.cursor = 'pointer'
   wrap.style.display = 'flex'
   wrap.style.flexDirection = 'column'
   wrap.style.alignItems = 'center'
-  wrap.style.padding = '10px'
-  wrap.style.margin = '-10px'
+  wrap.style.padding = '10px 10px 0'
 
   const bubble = document.createElement('div')
   bubble.style.background = '#1e4d43'
