@@ -4,11 +4,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import styles from './NavBar.module.css'
 
+// Bottom tab bar on phones; a left sidebar from 1024px up (see NavBar.module.css).
 export default function NavBar() {
   const path = usePathname()
 
   return (
-    <nav className={styles.nav}>
+    <nav className={styles.nav} data-app-nav>
+      <Link href="/dashboard" className={styles.brand}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-192.png" alt="" width={36} height={36} />
+        <span>Drift Journal</span>
+      </Link>
+
       <Link href="/dashboard" className={`${styles.item} ${path === '/dashboard' ? styles.active : ''}`}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -33,6 +40,7 @@ export default function NavBar() {
           </svg>
         </div>
         <span className={styles.logLabel}>Log</span>
+        <span className={styles.logLabelWide}>New trip</span>
       </Link>
 
       <Link href="/dashboard/profile" className={`${styles.item} ${path.includes('profile') ? styles.active : ''}`}>

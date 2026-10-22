@@ -151,6 +151,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
       </div>
 
+      {/* Desktop: map + conditions in a sticky left column, notes + catches on the right */}
+      <div className={styles.layout}>
+      <div className={styles.sideCol}>
       {/* Map */}
       {trip.lat && trip.lng && (
         <div className={styles.mapWrap}>
@@ -175,7 +178,9 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         <Cond label="Weather" value={trip.weather || 'N/A'} />
         <Cond label="Moon" value={getMoonPhase(trip.date)} />
       </div>
+      </div>
 
+      <div className={styles.mainCol}>
       {/* Notes */}
       {trip.notes && (
         <div className={styles.notes}>
@@ -232,6 +237,8 @@ export default function TripDetail({ trip }: { trip: Trip }) {
           </div>
         </div>
       )}
+      </div>
+      </div>
 
       {/* Expanded catch modal */}
       {expandedCatch && (() => {

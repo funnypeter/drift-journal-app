@@ -17,6 +17,18 @@
   --shadow: 0 2px 16px rgba(0,0,0,0.08);
   --radius: 16px;
   --nav-h: 68px;
+  --side-w: 0px;
+}
+
+/* Desktop: the bottom tab bar becomes a left sidebar (components/ui/NavBar). */
+@media (min-width: 1024px) {
+  :root {
+    --nav-h: 0px;
+    --side-w: 232px;
+  }
+  body:has([data-app-nav]) {
+    padding-left: var(--side-w);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

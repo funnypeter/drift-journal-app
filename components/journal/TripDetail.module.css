@@ -314,6 +314,59 @@
   color: var(--ink);
 }
 
+/* ── Desktop: two columns ─────────────────────────────────────────────────
+   .layout/.sideCol/.mainCol are plain blocks on phones, so the order stays
+   map → conditions → notes → catches. */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1180px;
+    padding: 8px 48px 64px;
+  }
+
+  .title { font-size: 2.8rem; }
+
+  .locationLine { margin-bottom: 28px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 40px;
+    align-items: start;
+  }
+
+  .sideCol {
+    position: sticky;
+    top: 24px;
+  }
+
+  /* Taller mini map in the wider column (LocationMiniMap's wrap > map div;
+     set before Mapbox reads the container size). */
+  .sideCol .mapWrap > div > div:first-child {
+    height: 300px;
+  }
+
+  .notes {
+    font-size: 1.5rem;
+    margin-bottom: 28px;
+  }
+
+  .catches { margin-top: 0; }
+
+  .catchGrid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .catchCard { transition: transform 0.15s, box-shadow 0.15s; }
+
+  .catchCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  .expandedCard { max-width: 640px; }
+}
+
 /* Delete confirmation overlay */
 .overlay {
   position: fixed;
