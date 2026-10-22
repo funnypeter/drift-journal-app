@@ -1,16 +1,13 @@
-import { createServerClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { getSession } from '@/lib/auth'
+import { getTrip } from '@/lib/db'
 import TripDetail from '@/components/journal/TripDetail'
 
-export default async function TripPage({ params }: { params: { id: string } }) {
-  const supabase = createServerClient()
-  const { data: trip, error } = await supabase
-    .from('trips')
-    .select('*, catches(*)')
-    .eq('id', params.id)
-    .single()
-
-  if (error || !trip) notFound()
+export default async function TripPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const session = await getSession()
+  const trip = await getTrip(id, session?.user.id ?? null)
+  if (!trip) notFound()
 
   return <TripDetail trip={trip} />
 }

@@ -1,51 +1,39 @@
-import { createRouteClient } from '@/lib/supabase/route'
+import { getSession } from '@/lib/auth'
+import { getTrip, updateTrip, deleteTrip } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+type Ctx = { params: Promise<{ id: string }> }
+
+export async function GET(_: NextRequest, { params }: Ctx) {
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data, error } = await supabase
-    .from('trips')
-    .select(`*, catches(* order by sort_order asc)`)
-    .eq('id', params.id)
-    .eq('user_id', session.user.id)
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 })
-  return NextResponse.json(data)
+  const { id } = await params
+  const trip = await getTrip(id, session.user.id)
+  if (!trip) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(trip)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id } = await params
   const body = await req.json()
-  const { data, error } = await supabase
-    .from('trips')
-    .update(body)
-    .eq('id', params.id)
-    .eq('user_id', session.user.id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  try {
+    const trip = await updateTrip(session.user.id, id, body)
+    if (!trip) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(trip)
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+export async function DELETE(_: NextRequest, { params }: Ctx) {
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabase
-    .from('trips')
-    .delete()
-    .eq('id', params.id)
-    .eq('user_id', session.user.id)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const { id } = await params
+  await deleteTrip(session.user.id, id)
   return new NextResponse(null, { status: 204 })
 }

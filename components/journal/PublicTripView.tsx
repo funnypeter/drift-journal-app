@@ -100,6 +100,8 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
         {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
       </div>
 
+      <div className={styles.layout}>
+      <div className={styles.sideCol}>
       {trip.lat && trip.lng && (
         <div className={styles.mapWrap}>
           <LocationMiniMap
@@ -121,7 +123,9 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
         <Cond label="Weather" value={trip.weather || 'N/A'} />
         <Cond label="Moon" value={getMoonPhase(trip.date)} />
       </div>
+      </div>
 
+      <div className={styles.mainCol}>
       {trip.notes && (
         <div className={styles.notes}>
           <p>{trip.notes}</p>
@@ -178,6 +182,8 @@ export default function PublicTripView({ trip }: { trip: Trip }) {
           </div>
         </div>
       )}
+      </div>
+      </div>
 
       {expandedCatch && (() => {
         const real = realCatches(catches)

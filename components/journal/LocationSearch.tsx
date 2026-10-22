@@ -25,7 +25,7 @@ export default function LocationSearch({ onSelect, defaultValue = '' }: Props) {
   const [loading, setLoading] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [recents, setRecents] = useState<RecentLocation[]>([])
-  const timerRef = useRef<NodeJS.Timeout>()
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => { setRecents(getRecentLocations()) }, [])
 

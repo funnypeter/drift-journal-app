@@ -1,46 +1,50 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import type { Trip, Catch, Profile } from '@/types'
+
+// JSON call to our own API routes; throws with the server's error message.
+async function api<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
+  const resp = await fetch(url, {
+    method,
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (resp.status === 204) return undefined as T
+  const data = await resp.json().catch(() => ({}))
+  if (!resp.ok) throw new Error(data.error || `Request failed: ${resp.status}`)
+  return data as T
+}
 
 // ── useTrips ──────────────────────────────────────────────────────────────────
 export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('trips')
-      .select('*, catches(*)')
-      .order('date', { ascending: false })
-    if (error) setError(error.message)
-    else setTrips(data || [])
+    try { setTrips(await api<Trip[]>('/api/trips')) }
+    catch (err: any) { setError(err.message) }
     setLoading(false)
   }, [])
 
   useEffect(() => { fetch() }, [fetch])
 
   const createTrip = async (trip: Partial<Trip>) => {
-    const { data, error } = await supabase.from('trips').insert(trip).select().single()
-    if (error) throw error
+    const data = await api<Trip>('/api/trips', 'POST', trip)
     setTrips(prev => [data, ...prev])
     return data
   }
 
   const updateTrip = async (id: string, updates: Partial<Trip>) => {
-    const { data, error } = await supabase.from('trips').update(updates).eq('id', id).select().single()
-    if (error) throw error
+    const data = await api<Trip>(`/api/trips/${id}`, 'PATCH', updates)
     setTrips(prev => prev.map(t => t.id === id ? { ...t, ...data } : t))
     return data
   }
 
   const deleteTrip = async (id: string) => {
-    const { error } = await supabase.from('trips').delete().eq('id', id)
-    if (error) throw error
+    await api(`/api/trips/${id}`, 'DELETE')
     setTrips(prev => prev.filter(t => t.id !== id))
   }
 
@@ -51,26 +55,18 @@ export function useTrips() {
 export function useTrip(id: string) {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const fetch = useCallback(async () => {
     if (!id) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('trips')
-      .select('*, catches(*)')
-      .eq('id', id)
-      .single()
-    if (!error) setTrip(data)
+    try { setTrip(await api<Trip>(`/api/trips/${id}`)) } catch { /* keep previous */ }
     setLoading(false)
   }, [id])
 
   useEffect(() => { fetch() }, [fetch])
 
   const updateCatch = async (catchId: string, updates: Partial<Catch>) => {
-    const { data, error } = await supabase
-      .from('catches').update(updates).eq('id', catchId).select().single()
-    if (error) throw error
+    const data = await api<Catch>('/api/catches', 'PATCH', { ...updates, id: catchId })
     setTrip(prev => prev ? {
       ...prev,
       catches: (prev.catches || []).map(c => c.id === catchId ? { ...c, ...data } : c)
@@ -79,15 +75,13 @@ export function useTrip(id: string) {
   }
 
   const addCatch = async (c: Partial<Catch>) => {
-    const { data, error } = await supabase.from('catches').insert(c).select().single()
-    if (error) throw error
+    const data = await api<Catch>('/api/catches', 'POST', c)
     setTrip(prev => prev ? { ...prev, catches: [...(prev.catches || []), data] } : prev)
     return data
   }
 
   const deleteCatch = async (catchId: string) => {
-    const { error } = await supabase.from('catches').delete().eq('id', catchId)
-    if (error) throw error
+    await api('/api/catches', 'DELETE', { id: catchId })
     setTrip(prev => prev ? {
       ...prev,
       catches: (prev.catches || []).filter(c => c.id !== catchId)

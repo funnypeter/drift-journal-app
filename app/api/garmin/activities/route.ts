@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server'
-import { createRouteClient } from '@/lib/supabase/route'
-import { loadConnection } from '@/lib/garmin/store'
+import { getSession } from '@/lib/auth'
+import { loadConnection, saveConnection } from '@/lib/garmin/store'
 import { garminClient, listFishingActivities } from '@/lib/garmin/garmin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function GET() {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const conn = await loadConnection(supabase, session.user.id).catch(() => null)
+  const conn = await loadConnection(session.user.id).catch(() => null)
   if (!conn) return NextResponse.json({ error: 'Garmin not connected' }, { status: 409 })
 
   try {
     const gc = garminClient(conn.tokens)
     const activities = await listFishingActivities(gc)
+    if (gc.refreshed) await saveConnection(session.user.id, conn.email, gc.tokens).catch(() => {})
     return NextResponse.json({ activities })
   } catch (err: any) {
     console.error('[garmin/activities]', err)

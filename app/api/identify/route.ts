@@ -1,10 +1,9 @@
-import { createRouteClient } from '@/lib/supabase/route'
+import { getSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   // Verify authenticated user
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { imageBase64, mimeType, netHoleSize } = await req.json()

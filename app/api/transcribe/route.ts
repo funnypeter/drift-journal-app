@@ -1,4 +1,4 @@
-import { createRouteClient } from '@/lib/supabase/route'
+import { getSession } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -8,8 +8,7 @@ export const maxDuration = 60
 // Gemini 2.5 Flash, and returns a tidied written version (fillers/false-starts
 // removed, grammar fixed) that the user can still edit by hand.
 export async function POST(req: NextRequest) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const apiKey = process.env.GEMINI_API_KEY

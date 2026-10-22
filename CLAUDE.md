@@ -4,11 +4,13 @@ Fly fishing journal app for logging trips, catches, and conditions.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Database & Auth**: Supabase (auth, PostgreSQL, storage)
+- **Framework**: Next.js 15 (App Router)
+- **Database**: Cloudflare D1 (`DB` binding; schema in `migrations/`, all queries in `lib/db`)
+- **Photos**: Cloudflare R2 (`PHOTOS` binding), served publicly by `app/photos/[...key]`
+- **Auth**: Email sign-in code + cookie session stored in D1 (`lib/auth.ts`); codes sent via Cloudflare Email Service (`EMAIL` binding, from `noreply@driftjournal.pmansour.com`)
 - **Maps**: Mapbox GL
 - **AI**: Google Gemini 2.5 Flash (fish species identification from photos)
-- **Hosting**: Vercel (region: iad1)
+- **Hosting**: Cloudflare Workers via `@opennextjs/cloudflare`, at https://driftjournal.pmansour.com (config in `wrangler.jsonc`)
 - **Styling**: CSS Modules
 - **PWA / Offline**: Serwist (`@serwist/next`) for service worker + IndexedDB (`idb`) for the offline queue
 
@@ -23,8 +25,10 @@ app/
     profile/          # User profile (net hole size, etc.)
     resolve-location/ # Server-side waterway resolver (Overpass + Mapbox + Nominatim)
     trips/            # CRUD for trip records
-    upload/           # Photo upload to Supabase storage (uses service-role bypass)
-  auth/               # Login, OAuth callback
+    upload/           # Photo upload to R2 (path forced under the user's id)
+    auth/             # send / verify sign-in code, sign out
+  auth/               # Login page
+  photos/             # Public R2 photo serving
   dashboard/          # Home feed (incl. Pending sync overlay), map view, profile
   trips/              # Trip detail, edit, new entry
   sw.ts               # Serwist service worker source (built to public/sw.js)
@@ -37,32 +41,33 @@ components/
   SyncRunner.tsx             # Background drainQueue runner
 hooks/                # useOnlineStatus, usePendingCount
 lib/offline/          # IndexedDB queue (db, queueClient), sync engine, geocode helper
-lib/supabase/         # Supabase client helpers (client, route, server)
+lib/cf.ts             # Cloudflare bindings accessor (env(), db())
+lib/db/               # D1 data layer — every query scoped to the caller's user id
+lib/auth.ts           # Sign-in codes, sessions, getSession()
+lib/garmin/client.ts  # fetch-based Garmin Connect client (SSO + OAuth1/2 + activities)
 types/                # TypeScript interfaces (Trip, Catch, Profile, etc.)
-supabase/migrations/  # SQL migrations
+migrations/           # D1 migrations (supabase/migrations is historical)
+scripts/migrate-from-supabase.mjs  # one-off Supabase → D1/R2 copy
 ```
 
-## Environment Variables (Vercel)
+## Config & Secrets
 
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase client
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase server-side
-- `GEMINI_API_KEY` — Google Gemini AI (server-only)
-- `NEXT_PUBLIC_MAPBOX_TOKEN` — Mapbox GL
-- `NEXT_PUBLIC_APP_URL` — App base URL
-
-No `.env.local` file exists locally — all env vars are set in Vercel.
+- Plain vars (`NEXT_PUBLIC_APP_URL`, `PHOTOS_PUBLIC_URL`, `EMAIL_FROM`) and bindings live in `wrangler.jsonc`.
+- Worker secrets (`wrangler secret put`): `GEMINI_API_KEY`, `GARMIN_TOKEN_KEY` (must equal the old Supabase service-role key so pre-migration Garmin tokens decrypt).
+- `NEXT_PUBLIC_MAPBOX_TOKEN` is inlined at build time — put it in `.env.production.local` before `npm run deploy`.
+- Local dev: secrets in `.dev.vars`; `npx wrangler d1 migrations apply DB --local` once.
 
 ## Key Patterns
 
-- **Auth**: Supabase SSR via middleware.ts. Redirects unauthenticated users to /auth/login.
-- **API routes**: Use `createRouteClient()` from `lib/supabase/route` for auth.
+- **Auth**: `middleware.ts` only checks the `dj_session` cookie exists (API → 401 JSON, pages → /auth/login); `getSession()` validates it against D1 in pages and routes. There is no row-level security — `lib/db` functions take the session user id and scope every query.
+- **API routes**: `const session = await getSession()` then call `lib/db`. Never trust a client-sent `user_id`.
 - **Fish ID flow**: Photo -> compress to 1200px -> base64 -> POST /api/identify -> Gemini 2.5 Flash -> returns `{species, length, confidence}`.
 - **Voice notes**: `components/journal/VoiceNotesButton.tsx` (a "Narrate" mic button beside the Notes label on the new/edit trip forms) records with `MediaRecorder` (Opus in webm on Android/Chrome) -> POST audio to `/api/transcribe` -> Gemini 2.5 Flash transcribes + cleans it up (strips fillers/false-starts, fixes grammar) -> the tidied text is appended to the notes textarea, still keyboard-editable. Audio is sent inline (20MB cap; route rejects >18MB) with the recorded mime type passed through as `inline_data.mime_type`.
 - **Conditions flow**: Location selected -> auto-fetch river data (USGS for US, Environment Agency for UK with NRFA fallback) + Open-Meteo (air temp, weather, baro, wind) -> displayed in ConditionsPanel.
 - **USGS gauge lookup**: Hardcoded table of ~20 rivers -> fallback to nearest gauge search by lat/lng.
 - **UK conditions routing**: `lib/geoUtils.ts` `isUK(lat, lng)` bounding-box check. UK trips fetch from Environment Agency real-time API (`environment.data.gov.uk/flood-monitoring`), falling back to NRFA (`nrfa.ceh.ac.uk/api`) for Scotland/Wales/NI or older trip dates. UK conditions display in metric (m³/s, m, °C); US in imperial. Both APIs are free with no auth.
-- **Image handling**: Photos compressed client-side before upload. Supabase storage bucket: `catch-photos`. `/api/upload` runs the storage write under the service-role key (path is forced to `${session.user.id}/...`, so RLS at the bucket level becomes redundant for this route — auth is enforced at route entry). This sidesteps an SSR/JWT propagation edge case where the cookie-bound client occasionally tripped storage RLS on deferred offline-sync uploads.
-- **Offline trip flow**: A trip created while `navigator.onLine === false` (or saved-online that fails partway through) is enqueued to IndexedDB (`lib/offline/db.ts`: `pendingTrips`, `pendingCatches`, `pendingPhotos`). The service worker (`app/sw.ts`) is `NetworkOnly` for `/api/*` so cached mutations are never served stale. `SyncRunner` drains the queue on mount, on `online`, on tab visibility, and every 5 min while visible. Upserts on `/api/trips` and `/api/catches` use `onConflict: 'id'` so replays are idempotent. The `OfflineBadge` shows `Offline`, `N pending · tap to sync` (with a spinner while draining), or `Sign in to sync` if the session expires mid-drain.
+- **Image handling**: Photos compressed client-side before upload. R2 bucket: `drift-journal-photos`. `/api/upload` forces the key to `${session.user.id}/<catchId>.<ext>` and returns a `?v=<timestamp>` URL so a replaced photo isn't served stale from cache.
+- **Offline trip flow**: A trip created while `navigator.onLine === false` (or saved-online that fails partway through) is enqueued to IndexedDB (`lib/offline/db.ts`: `pendingTrips`, `pendingCatches`, `pendingPhotos`). The service worker (`app/sw.ts`) is `NetworkOnly` for `/api/*` so cached mutations are never served stale. `SyncRunner` drains the queue on mount, on `online`, on tab visibility, and every 5 min while visible. Upserts on `/api/trips` and `/api/catches` are keyed on the client-supplied `id` (`upsertTrip`/`upsertCatch` in `lib/db`) so replays are idempotent. The `OfflineBadge` shows `Offline`, `N pending · tap to sync` (with a spinner while draining), or `Sign in to sync` if the session expires mid-drain.
 - **Waterway name resolution**: When a GPS-only trip is saved offline, the location starts as "Pinned location" and `needs_geocode` flags the IDB entry. `/api/resolve-location?lat=&lng=` chains Overpass (relation queries first across two radii with one retry on empty — major water bodies beat creek/stream ways) → Mapbox (`mapbox.places` with anchored regex ranking, lake/reservoir/bay beats river/creek/stream) → Nominatim (reverse, for state + minor water fields). The sync engine calls this on the way to PATCHing the trip, and the dashboard has a second-chance backfill effect that retries any trip in the loaded feed whose name still matches `/^(Pinned location|Current Location)/` and has lat/lng. Backfill is capped at 5 trips per page load with an in-memory dedup set.
 - **Pending edit UI**: The Pending sync card on the dashboard opens an in-page overlay (`EditPendingTripForm`) — not a separate route — so editing a queued trip works offline regardless of SW cache state. Save writes back to IDB; the next `drainQueue` replays the edited values. A Discard button removes the trip from the queue.
 - **Service worker update flow**: `ServiceWorkerRegister` listens for `controllerchange` (after ignoring the first install) and surfaces a small "New version available · Refresh" pill. The user decides when to reload — auto-reload would risk wiping an in-progress form. After a deploy, *tap the pill before testing* so the page picks up the new JS bundle (the SW activates immediately via `skipWaiting + clientsClaim`, but the tab keeps its in-memory bundle until reload).
@@ -71,9 +76,11 @@ No `.env.local` file exists locally — all env vars are set in Vercel.
 ## Commands
 
 ```bash
-npm run dev     # Start dev server
-npm run build   # Production build
-npm run lint    # ESLint
+npm run dev      # Next dev server (bindings from wrangler.jsonc via OpenNext)
+npm run preview  # Build for Workers and run locally in workerd
+npm run deploy   # Build and deploy to driftjournal.pmansour.com
+npm run lint     # ESLint
+npx wrangler d1 migrations apply DB --remote   # apply new migrations/ files
 ```
 
 ## Database Tables
@@ -83,11 +90,12 @@ npm run lint    # ESLint
 - **catches**: id, trip_id, user_id, species, length, fly, fly_category, fly_size, time_caught, date, notes, photo_url, photo_path, ai_confidence, sort_order, lat, lng, kind
 
 - **garmin_connections**: user_id (pk), garmin_email, token_cipher, connected_at, updated_at
-- **trips.garmin_pins** (jsonb, migration `007`): array of `{ lat, lng, time }` GPS pins from an imported Garmin fishing activity — NOT catch records.
+- **users / sessions / login_codes**: auth (see `lib/auth.ts`)
+- **trips.garmin_pins** (JSON text; `lib/db` parses it): array of `{ lat, lng, time }` GPS pins from an imported Garmin fishing activity — NOT catch records.
 
-`garmin_connections` (added in `006_add_garmin_connection.sql`): one row per user holding the **encrypted** Garmin Connect session token (OAuth1+OAuth2). The password is never stored — `POST /api/garmin/connect` logs in once via the `garmin-connect` npm lib, then persists `exportToken()` output AES-256-GCM-encrypted (`lib/garmin/crypto.ts`; key derived from `GARMIN_TOKEN_KEY` or falls back to `SUPABASE_SERVICE_ROLE_KEY`). RLS scopes rows to the owner. The token-restore client (`garminClient` in `lib/garmin/garmin.ts`) must be constructed with a placeholder credentials object or `new GarminConnect()` throws "Missing credentials" before the token is used.
+`garmin_connections`: one row per user holding the **encrypted** Garmin Connect session token (`{ oauth1, oauth2 }`). The password is never stored — `POST /api/garmin/connect` logs in once via `lib/garmin/client.ts` (a fetch port of the `garmin-connect` npm lib, which can't load in a Worker), then persists the tokens AES-256-GCM-encrypted (`lib/garmin/crypto.ts`; key derived from `GARMIN_TOKEN_KEY`). When a call refreshes the OAuth2 token (`gc.refreshed`), the route re-saves it.
 
-**Garmin import flow**: Settings → Garmin Connect (`components/journal/GarminConnect.tsx`) links the account; New Entry → "Import from Garmin" (`GarminActivityPicker` + `step==='garmin'` in `NewTripForm`) lists fishing activities (`/api/garmin/activities`), and picking one calls `/api/garmin/import` → downloads the original FIT → `lib/garmin/fit.ts` reads each **manually-triggered lap** (`lapTrigger==='manual'`) as one catch pin (that's how the watch's "Log Catch" is stored). **These pins are NOT catch records** (catches come only from photos): they're saved to `trips.garmin_pins` and render as bare fish markers on the map (merged into `mapCatches` in `TripDetail`/`PublicTripView`; pin ids are `pin-N` so tapping is a no-op). At save, `lib/pinLink.ts` `linkCatchesToPins` gives any photo catch whose **EXIF capture time** (`lib/exif.ts`, read from the original file before compression strips it) is within 1 min of a pin that pin's GPS, and the consumed pin drops out of `garmin_pins`. FIT lap timestamps are UTC; `importFishingActivity` shifts them to the activity's local wall-clock (via its own `startTimeGMT`/`startTimeLocal` offset) so they compare directly to EXIF (also wall-clock, no zone) without a lat/lng timezone lookup. Garmin routes are `runtime='nodejs'` (the lib uses Node fs/https) and unofficial (can break if Garmin changes their SSO); login is from a datacenter IP so Garmin's bot-protection may occasionally block it.
+**Garmin import flow**: Settings → Garmin Connect (`components/journal/GarminConnect.tsx`) links the account; New Entry → "Import from Garmin" (`GarminActivityPicker` + `step==='garmin'` in `NewTripForm`) lists fishing activities (`/api/garmin/activities`), and picking one calls `/api/garmin/import` → downloads the original FIT → `lib/garmin/fit.ts` reads each **manually-triggered lap** (`lapTrigger==='manual'`) as one catch pin (that's how the watch's "Log Catch" is stored). **These pins are NOT catch records** (catches come only from photos): they're saved to `trips.garmin_pins` and render as bare fish markers on the map (merged into `mapCatches` in `TripDetail`/`PublicTripView`; pin ids are `pin-N` so tapping is a no-op). At save, `lib/pinLink.ts` `linkCatchesToPins` gives any photo catch whose **EXIF capture time** (`lib/exif.ts`, read from the original file before compression strips it) is within 1 min of a pin that pin's GPS, and the consumed pin drops out of `garmin_pins`. FIT lap timestamps are UTC; `importFishingActivity` shifts them to the activity's local wall-clock (via its own `startTimeGMT`/`startTimeLocal` offset) so they compare directly to EXIF (also wall-clock, no zone) without a lat/lng timezone lookup. The Garmin API is unofficial (can break if Garmin changes their SSO); login is from a datacenter IP so Garmin's bot-protection may occasionally block it.
 
 `catches.kind` (added in `005_add_catch_kind.sql`, nullable): `'flower'` = a plant photo (the plant's name is kept in `species`), `'none'` = a no-fish scene (`species = 'No Fish'`). Both show in the Catch Gallery but are excluded from catch totals. Null/`'fish'` = a normal counted catch. Exclusion lives in `lib/catchUtils.ts` `isNoFish` (checks `kind`, falling back to the legacy `species = 'No Fish'` sentinel for rows saved before this column existed). Non-fish photos are created via the multi-photo "Add Photos" picker or single-photo AI identify in `CatchCard`; the save paths null out length/fly fields for them and only send `kind` when a photo was identified (so manual, no-photo catches stay saveable even before the migration is applied).
 
@@ -95,10 +103,9 @@ npm run lint    # ESLint
 
 **Mapbox custom-marker footgun**: `mapboxgl.Marker({ element })` positions the marker by writing `transform: translate3d(x, y, 0)` on the element you pass in. If any CSS / JS sets `transform` on that same element (e.g. `:hover { transform: scale(1.15) }` or `el.style.transform = 'scale(...)'`), it **clobbers the translate** and the marker teleports to (0, 0) of the map container — i.e. the top-left corner. Apply hover/press transforms to a child element instead, never to the wrap Mapbox owns. Same wrap, same rule for **`margin` and bottom `padding`**: `.mapboxgl-marker` is `position: absolute; top: 0; left: 0`, so a margin shifts the element off its anchor, and `anchor: 'bottom'` resolves `translate(-50%, -100%)` against the *border box*, so bottom padding lifts the visible pin tip above the coordinate. These are fixed **pixel** offsets — imperceptible on the zoomed-in expanded map but hundreds of metres of ground error on the zoom-13 mini map. See `components/journal/catchMarker.ts`.
 
-**Public share links**: A trip can be made shareable by setting `trips.is_public = true` (toggle lives in `ShareTripDialog` on the trip detail page). The public route is `/share/[id]` — server-rendered with the anon Supabase client, bypassed in `middleware.ts` so unauthenticated visitors can view it. RLS in migration `004` is additive: owners keep their existing CRUD policy; an additional `select`-only policy permits anyone (including anon) when `is_public = true`, plus a join-via-exists policy on `catches` so the trip's catches come along.
+**Public share links**: A trip can be made shareable by setting `trips.is_public = true` (toggle lives in `ShareTripDialog` on the trip detail page). The public route is `/share/[id]` — server-rendered via `getTrip(id, null, { publicOnly: true })`, bypassed in `middleware.ts` so unauthenticated visitors can view it. `/trips/[id]` likewise shows the owner's trip or any public one.
 
 ## Notes
 
-- Supabase CLI is installed (`npx supabase`, v2.89.0) but not logged in locally.
-- Deploy is automatic on push to `main` via Vercel.
+- Deploy with `npm run deploy` (Wrangler is logged in locally). Pushing to `main` does not deploy.
 - The conditions `...conditions` spread is used when saving trips — any new condition field must have a corresponding DB column or the save will fail.
