@@ -1,45 +1,23 @@
-import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PublicTripView from '@/components/journal/PublicTripView'
 import { formatDate } from '@/lib/dateUtils'
-import type { Trip } from '@/types'
+import { getTrip } from '@/lib/db'
 
-// Public share route — bypasses auth (see middleware.ts) and queries with the
-// anon role. RLS allows the row through only when trips.is_public = true, so a
-// non-public trip simply yields no rows and we render notFound().
-export default async function PublicTripPage({ params }: { params: { id: string } }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  )
+// Public share route — bypasses auth (see middleware.ts). Only trips with
+// is_public = 1 are returned, so a non-public trip renders notFound().
+export default async function PublicTripPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const trip = await getTrip(id, null, { publicOnly: true })
+  if (!trip) notFound()
 
-  const { data: trip, error } = await supabase
-    .from('trips')
-    .select('*, catches(*)')
-    .eq('id', params.id)
-    .eq('is_public', true)
-    .single()
-
-  if (error || !trip) notFound()
-
-  return <PublicTripView trip={trip as Trip} />
+  return <PublicTripView trip={trip} />
 }
 
 export const dynamic = 'force-dynamic'
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  )
-  const { data: trip } = await supabase
-    .from('trips')
-    .select('title, location, hero_photo_url, date')
-    .eq('id', params.id)
-    .eq('is_public', true)
-    .single()
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const trip = await getTrip(id, null, { publicOnly: true })
   if (!trip) return { title: 'Drift Journal' }
   return {
     title: `${trip.title} — Drift Journal`,

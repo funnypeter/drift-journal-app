@@ -1,17 +1,10 @@
-import os from 'os'
-import path from 'path'
-import fs from 'fs'
 import { unzipSync } from 'fflate'
-import { GarminConnect } from 'garmin-connect'
+import { GarminClient, garminLogin as login, type GarminTokens } from './client'
 import { parseFitActivity, type FitCatch } from './fit'
 
-// Server-only. garmin-connect uses Node fs/https, so only import this from
-// API routes (never a client component).
+// Server-only. Uses the fetch-based client in ./client, so it runs in a Worker.
 
-export interface GarminTokens {
-  oauth1: unknown
-  oauth2: unknown
-}
+export type { GarminTokens }
 
 export interface FishingActivity {
   activityId: number
@@ -39,21 +32,12 @@ export interface ImportedActivity {
 
 /** Log in with email + password and return the session token to persist. */
 export async function garminLogin(email: string, password: string): Promise<GarminTokens> {
-  const gc = new GarminConnect({ username: email, password })
-  await gc.login()
-  const tokens = gc.exportToken() as unknown as GarminTokens
-  if (!tokens?.oauth1 || !tokens?.oauth2) throw new Error('Login succeeded but no token returned')
-  return tokens
+  return login(email, password)
 }
 
 /** Restore a client from stored tokens (no password needed). */
-export function garminClient(tokens: GarminTokens): GarminConnect {
-  // The constructor throws "Missing credentials" on an empty object, but we
-  // authenticate via the stored token (loadToken), not login() — so these
-  // placeholder values are never used. They just satisfy the constructor.
-  const gc = new GarminConnect({ username: 'token', password: 'token' })
-  gc.loadToken(tokens.oauth1 as any, tokens.oauth2 as any)
-  return gc
+export function garminClient(tokens: GarminTokens): GarminClient {
+  return new GarminClient(tokens)
 }
 
 const isFishing = (typeKey?: string) => !!typeKey && typeKey.toLowerCase().includes('fishing')
@@ -65,8 +49,8 @@ function localDate(a: any): string {
 }
 
 /** Recent fishing activities, newest first. */
-export async function listFishingActivities(gc: GarminConnect): Promise<FishingActivity[]> {
-  const activities = (await gc.getActivities(0, 40)) as any[]
+export async function listFishingActivities(gc: GarminClient): Promise<FishingActivity[]> {
+  const activities = await gc.getActivities(0, 40)
   return activities
     .filter(a => isFishing(a?.activityType?.typeKey))
     .map(a => ({
@@ -80,27 +64,14 @@ export async function listFishingActivities(gc: GarminConnect): Promise<FishingA
 }
 
 /** Download the original FIT for one activity and extract its catch pins. */
-export async function importFishingActivity(gc: GarminConnect, activityId: number): Promise<ImportedActivity> {
-  const summary = (await gc.getActivity({ activityId })) as any
+export async function importFishingActivity(gc: GarminClient, activityId: number): Promise<ImportedActivity> {
+  const summary = await gc.getActivity(activityId)
 
-  const dir = os.tmpdir()
-  await gc.downloadOriginalActivityData({ activityId }, dir, 'zip')
-  const zipPath = path.join(dir, `${activityId}.zip`)
-  let fitCatches: FitCatch[] = []
-  let fitStartLat: number | null = null
-  let fitStartLng: number | null = null
-  try {
-    const zipBuf = fs.readFileSync(zipPath)
-    const entries = unzipSync(new Uint8Array(zipBuf))
-    const fitName = Object.keys(entries).find(n => n.toLowerCase().endsWith('.fit'))
-    if (!fitName) throw new Error('No FIT file inside the Garmin export')
-    const parsed = parseFitActivity(entries[fitName])
-    fitCatches = parsed.catches
-    fitStartLat = parsed.startLat
-    fitStartLng = parsed.startLng
-  } finally {
-    try { fs.unlinkSync(zipPath) } catch { /* best effort */ }
-  }
+  const entries = unzipSync(await gc.downloadOriginal(activityId))
+  const fitName = Object.keys(entries).find(n => n.toLowerCase().endsWith('.fit'))
+  if (!fitName) throw new Error('No FIT file inside the Garmin export')
+  const parsed = parseFitActivity(entries[fitName])
+  const fitCatches: FitCatch[] = parsed.catches
 
   // Pin times already come back as trip-local wall clock from the FIT parser
   // (it derives the offset from the FIT's own local_timestamp).
@@ -110,8 +81,8 @@ export async function importFishingActivity(gc: GarminConnect, activityId: numbe
     activityId,
     title: summary?.activityName || 'Fishing Trip',
     date: localDate(summary),
-    lat: summary?.startLatitude ?? fitStartLat,
-    lng: summary?.startLongitude ?? fitStartLng,
+    lat: summary?.startLatitude ?? parsed.startLat,
+    lng: summary?.startLongitude ?? parsed.startLng,
     pins,
   }
 }

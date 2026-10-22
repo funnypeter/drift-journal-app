@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import styles from './MigrateData.module.css'
+
+function postJson(url: string, method: string, body: unknown) {
+  return fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
 
 interface OldCatch {
   species?: string
@@ -41,7 +44,6 @@ export default function MigrateData() {
   const [oldTrips, setOldTrips] = useState<OldTrip[]>([])
   const [progress, setProgress] = useState({ done: 0, total: 0, current: '' })
   const [error, setError] = useState('')
-  const supabase = createClient()
 
   function loadFromPaste(json: string) {
     try {
@@ -70,21 +72,13 @@ export default function MigrateData() {
       for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
       const blob = new Blob([arr], { type: mime })
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return null
-
-      const path = `${user.id}/${catchId}.${ext}`
-      const { data: uploaded, error } = await supabase.storage
-        .from('catch-photos')
-        .upload(path, blob, { upsert: true, contentType: mime })
-
-      if (error) return null
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('catch-photos')
-        .getPublicUrl(uploaded.path)
-
-      return publicUrl
+      const form = new FormData()
+      form.append('file', new File([blob], `${catchId}.${ext}`, { type: mime }))
+      form.append('catchId', catchId)
+      const resp = await fetch('/api/upload', { method: 'POST', body: form })
+      if (!resp.ok) return null
+      const { url } = await resp.json()
+      return url as string
     } catch { return null }
   }
 
@@ -94,16 +88,12 @@ export default function MigrateData() {
     setProgress({ done: 0, total, current: '' })
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
       for (let i = 0; i < oldTrips.length; i++) {
         const old = oldTrips[i]
         setProgress({ done: i, total, current: old.title || old.location || 'Trip' })
 
         // Insert trip
-        const { data: trip, error: tripErr } = await supabase.from('trips').insert({
-          user_id: user.id,
+        const tripResp = await postJson('/api/trips', 'POST', {
           title: old.title || (old.location ? `${old.location} Trip` : 'Trip'),
           date: old.date || new Date().toISOString().split('T')[0],
           location: old.location,
@@ -118,9 +108,10 @@ export default function MigrateData() {
           wind: old.wind,
           moon: old.moon,
           notes: old.notes,
-        }).select().single()
-
-        if (tripErr || !trip) continue
+        })
+        if (tripResp.status === 401) throw new Error('Not authenticated')
+        if (!tripResp.ok) continue
+        const trip = await tripResp.json()
 
         // Insert catches
         const catches = old.catches_list || []
@@ -134,10 +125,9 @@ export default function MigrateData() {
             photoUrl = await uploadBase64Photo(c.photo, catchId)
           }
 
-          await supabase.from('catches').insert({
+          await postJson('/api/catches', 'POST', {
             id: catchId,
             trip_id: trip.id,
-            user_id: user.id,
             species: c.species || 'Unknown',
             length: c.length && c.length !== '—' ? parseFloat(c.length) : null,
             fly: c.fly !== '—' ? c.fly : null,
@@ -152,7 +142,8 @@ export default function MigrateData() {
 
           // Set hero photo on trip if first catch with photo
           if (photoUrl && !trip.hero_photo_url) {
-            await supabase.from('trips').update({ hero_photo_url: photoUrl }).eq('id', trip.id)
+            await postJson(`/api/trips/${trip.id}`, 'PATCH', { hero_photo_url: photoUrl })
+            trip.hero_photo_url = photoUrl
           }
         }
       }

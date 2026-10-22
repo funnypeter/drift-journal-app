@@ -2,14 +2,26 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import styles from './login.module.css'
 
 type Step = 'email' | 'code'
 
+async function authCall(body: Record<string, string>): Promise<{ error?: string }> {
+  try {
+    const resp = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await resp.json().catch(() => ({}))
+    return resp.ok ? {} : { error: data.error || 'Something went wrong' }
+  } catch {
+    return { error: 'Network error — check your connection' }
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
@@ -21,10 +33,10 @@ export default function LoginPage() {
   async function sendCode(targetEmail: string) {
     setError('')
     setLoading(true)
-    const { error: sendErr } = await supabase.auth.signInWithOtp({ email: targetEmail })
+    const { error: sendErr } = await authCall({ action: 'send', email: targetEmail })
     setLoading(false)
     if (sendErr) {
-      setError(sendErr.message)
+      setError(sendErr)
       return false
     }
     return true
@@ -42,14 +54,10 @@ export default function LoginPage() {
   async function verifyCode(token: string) {
     setError('')
     setLoading(true)
-    const { error: verifyErr } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email',
-    })
+    const { error: verifyErr } = await authCall({ action: 'verify', email, code: token })
     setLoading(false)
     if (verifyErr) {
-      setError(verifyErr.message)
+      setError(verifyErr)
       return
     }
     router.push('/dashboard')

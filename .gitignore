@@ -36,3 +36,9 @@ yarn-error.log*
 .turbo
 
 .vercel
+
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
+.dev.vars
+.migration/

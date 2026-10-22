@@ -6,16 +6,11 @@ const withSerwist = require('@serwist/next').default({
 })
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/**',
-      },
-    ],
-  },
-};
+const nextConfig = {};
 
 module.exports = withSerwist(nextConfig);
+
+// Gives `next dev` access to the D1/R2/email bindings from wrangler.jsonc.
+if (process.argv.includes('dev')) {
+  import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev())
+}

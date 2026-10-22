@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteClient } from '@/lib/supabase/route'
+import { getSession } from '@/lib/auth'
 import { garminLogin } from '@/lib/garmin/garmin'
 import { saveConnection } from '@/lib/garmin/store'
 
@@ -7,8 +7,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { email, password } = await req.json().catch(() => ({}))
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await saveConnection(supabase, session.user.id, email, tokens)
+    await saveConnection(session.user.id, email, tokens)
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Failed to save connection' }, { status: 500 })
   }

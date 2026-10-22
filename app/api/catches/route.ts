@@ -1,54 +1,39 @@
-import { createRouteClient } from '@/lib/supabase/route'
+import { getSession } from '@/lib/auth'
+import { upsertCatch, updateCatch, deleteCatch } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   // Accept optional client-supplied id so offline replays are idempotent.
-  // RLS still enforces user_id = auth.uid().
-  const { data, error } = await supabase
-    .from('catches')
-    .upsert({ ...body, user_id: session.user.id }, { onConflict: 'id' })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
+  try {
+    return NextResponse.json(await upsertCatch(session.user.id, body), { status: 201 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id, ...body } = await req.json()
-  const { data, error } = await supabase
-    .from('catches')
-    .update(body)
-    .eq('id', id)
-    .eq('user_id', session.user.id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  try {
+    const data = await updateCatch(session.user.id, id, body)
+    if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(data)
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await req.json()
-  const { error } = await supabase
-    .from('catches')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', session.user.id)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await deleteCatch(session.user.id, id)
   return new NextResponse(null, { status: 204 })
 }

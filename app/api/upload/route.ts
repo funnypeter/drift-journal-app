@@ -1,11 +1,9 @@
-import { createRouteClient } from '@/lib/supabase/route'
-import { createAdminClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth'
+import { putPhoto } from '@/lib/photos'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  // Auth gate uses the SSR client (cookie-bound session).
-  const supabase = createRouteClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const formData = await req.formData()
@@ -23,25 +21,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
   }
 
-  const ext = file.name.split('.').pop() || 'jpg'
-  // Path always starts with session.user.id, so an authenticated user can
-  // only write to their own folder by construction. We do the upload with
-  // the service role to sidestep storage RLS, which was intermittently
-  // rejecting the SSR client's JWT for offline-sync requests (online
-  // uploads worked, but the deferred sync hit "new row violates row-level
-  // security policy" — likely an SSR auth/storage propagation edge case).
-  const path = `${session.user.id}/${catchId || crypto.randomUUID()}.${ext}`
+  const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '')
+  const safeId = (catchId || crypto.randomUUID()).replace(/[^a-z0-9-]/gi, '')
+  // Path always starts with session.user.id, so a user can only write to their
+  // own folder by construction.
+  const path = `${session.user.id}/${safeId}.${ext}`
 
-  const admin = createAdminClient()
-  const { data, error } = await admin.storage
-    .from('catch-photos')
-    .upload(path, file, { upsert: true, contentType: file.type })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const { data: { publicUrl } } = admin.storage
-    .from('catch-photos')
-    .getPublicUrl(data.path)
-
-  return NextResponse.json({ url: publicUrl, path: data.path })
+  try {
+    const url = await putPhoto(path, await file.arrayBuffer(), file.type)
+    // Same path is reused when a catch's photo is replaced; version the URL so
+    // browsers and the edge cache don't keep showing the old one.
+    return NextResponse.json({ url: `${url}?v=${Date.now()}`, path })
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Upload failed' }, { status: 500 })
+  }
 }

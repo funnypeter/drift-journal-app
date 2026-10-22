@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/hooks'
 import MigrateData from '@/components/journal/MigrateData'
 import GarminConnect from '@/components/journal/GarminConnect'
@@ -10,7 +9,6 @@ import styles from './profile.module.css'
 
 export default function ProfilePage() {
   const router = useRouter()
-  const supabase = createClient()
   const { profile, updateProfile } = useProfile()
 
   const [netSize, setNetSize] = useState('')
@@ -39,7 +37,11 @@ export default function ProfilePage() {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'signout' }),
+    }).catch(() => {})
     router.push('/auth/login')
   }
 
