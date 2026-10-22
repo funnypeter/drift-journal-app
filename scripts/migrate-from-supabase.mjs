@@ -159,8 +159,7 @@ async function main() {
     const src = join(OUT, 'photos', p)
     if (!existsSync(src)) continue
     const type = (await import('node:fs')).readFileSync(src + '.type', 'utf8')
-    wrangler('r2', 'object', 'put', `${R2_BUCKET}/${p}`, '--file', src, '--content-type', type,
-      '--cache-control', 'public, max-age=86400', '--remote')
+    wrangler('r2', 'object', 'put', `${R2_BUCKET}/${p}`, '--file', src, '--content-type', type, '--remote')
   }
   console.log('Loading D1…')
   wrangler('d1', 'execute', 'DB', '--remote', '--file', join(OUT, 'data.sql'), '--yes')

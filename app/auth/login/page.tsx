@@ -90,11 +90,8 @@ export default function LoginPage() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-            <rect width="40" height="40" rx="12" fill="#1e4d43"/>
-            <path d="M8 28 Q14 22 20 24 Q26 26 32 20" stroke="#f2ede4" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-            <path d="M12 22 Q16 18 20 19 Q24 20 28 16" stroke="#f2ede4" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6"/>
-          </svg>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="" width={48} height={48} className={styles.logoMark} />
           <span className={styles.logoText}>Drift Journal</span>
         </div>
 
