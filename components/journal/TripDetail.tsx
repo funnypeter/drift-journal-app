@@ -7,6 +7,7 @@ import Link from 'next/link'
 import type { Trip, Catch } from '@/types'
 import ShareCard from '@/components/share/ShareCard'
 import ShareTripDialog from './ShareTripDialog'
+import { useStickyTitle } from './useStickyTitle'
 import { realCatches, isNoFish } from '@/lib/catchUtils'
 import { formatDate } from '@/lib/dateUtils'
 import styles from './TripDetail.module.css'
@@ -113,8 +114,10 @@ export default function TripDetail({ trip }: { trip: Trip }) {
     }
   }
 
+  const { titleRef, containerStyle } = useStickyTitle()
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={containerStyle}>
       {/* Top bar */}
       <div className={styles.topBar}>
         <Link href="/dashboard" className={styles.backBtn}>
@@ -141,14 +144,16 @@ export default function TripDetail({ trip }: { trip: Trip }) {
         </div>
       </div>
 
-      {/* Date & Title */}
-      <div className={styles.dateLabel}>
-        {formatDate(trip.date).toUpperCase()}
-      </div>
-      <h1 className={styles.title}>{trip.title}</h1>
-      <div className={styles.locationLine}>
-        {trip.location}
-        {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
+      {/* Date & Title: stays in view while scrolling (DRIFT-003) */}
+      <div ref={titleRef} className={styles.titleBlock}>
+        <div className={styles.dateLabel}>
+          {formatDate(trip.date).toUpperCase()}
+        </div>
+        <h1 className={styles.title}>{trip.title}</h1>
+        <div className={styles.locationLine}>
+          {trip.location}
+          {trip.state && <span className={styles.stateLink}> • {trip.state}</span>}
+        </div>
       </div>
 
       {/* Desktop: map + conditions in a sticky left column, notes + catches on the right */}
