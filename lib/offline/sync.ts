@@ -1,4 +1,5 @@
 import { compressForIdentify } from '@/lib/imageUtils'
+import { isNoFish } from '@/lib/catchUtils'
 import {
   deleteTripCascade,
   getCatchesForTrip,
@@ -62,6 +63,7 @@ async function syncCatchPhoto(c: PendingCatch): Promise<string | null> {
 
 async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch> {
   const photoUrl = await syncCatchPhoto(c)
+  const nonFishNow = isNoFish(c)
 
   const upResp = await jsonFetch('/api/catches', {
     method: 'POST',
@@ -70,10 +72,10 @@ async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch>
       id: c.id,
       trip_id: tripId,
       species: c.species || 'Unknown',
-      length: c.length || null,
-      fly: c.fly || null,
-      fly_category: c.fly_category,
-      fly_size: c.fly_size,
+      length: nonFishNow ? null : c.length || null,
+      fly: nonFishNow ? null : c.fly || null,
+      fly_category: nonFishNow ? null : c.fly_category,
+      fly_size: nonFishNow ? null : c.fly_size,
       time_caught: c.time_caught || null,
       date: c.date,
       notes: c.notes,
@@ -110,9 +112,10 @@ async function syncCatch(c: PendingCatch, tripId: string): Promise<PendingCatch>
               body: JSON.stringify({
                 id: c.id,
                 species: result.species,
-                // Plants keep their name but drop the (irrelevant) length and
-                // are marked non-fish so they don't count as catches.
+                // Plants and no-fish photos keep their name but drop the (irrelevant)
+                // length and fly, and are marked non-fish so they don't count as catches.
                 length: nonFish ? null : (result.length ? parseFloat(result.length) : c.length),
+                ...(nonFish ? { fly: null, fly_category: null, fly_size: null } : {}),
                 kind: result.kind || 'fish',
               }),
             })

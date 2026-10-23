@@ -4,7 +4,10 @@ import type { Catch } from '@/types'
 // for its photo and conditions, but shouldn't count toward catch totals. Marked
 // either by `kind` ('flower'/'none') or, for older rows saved before the `kind`
 // column existed, by the sentinel species "No Fish".
-export function isNoFish<T extends Pick<Catch, 'species' | 'kind'>>(c: T): boolean {
+// Accepts saved catches and in-progress drafts (species may still be unset).
+type KindLike = { species?: string | null; kind?: Catch['kind'] | null }
+
+export function isNoFish(c: KindLike): boolean {
   if (c.kind === 'flower' || c.kind === 'none') return true
   return (c.species || '').trim().toLowerCase() === 'no fish'
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Trip, Catch, Platform } from '@/types'
+import { isNoFish } from '@/lib/catchUtils'
 import { PLATFORMS } from '@/types'
 import { formatDate } from '@/lib/dateUtils'
 import styles from './ShareCard.module.css'
@@ -20,9 +21,10 @@ function buildTags(trip: Trip, catch_: Catch): Tag[] {
 
   // Tier 2 — inline details
   if (catch_.species) tags.push({ key: 'species', label: catch_.species, on: true, tier: 2 })
-  if (catch_.length) tags.push({ key: 'length', label: `${catch_.length}"`, on: true, tier: 2 })
-  if (catch_.fly) tags.push({ key: 'fly', label: catch_.fly, on: true, tier: 2 })
-  if (catch_.fly_size) tags.push({ key: 'fly_size', label: `#${catch_.fly_size}`, on: true, tier: 2 })
+  const fish = !isNoFish(catch_)
+  if (fish && catch_.length) tags.push({ key: 'length', label: `${catch_.length}"`, on: true, tier: 2 })
+  if (fish && catch_.fly) tags.push({ key: 'fly', label: catch_.fly, on: true, tier: 2 })
+  if (fish && catch_.fly_size) tags.push({ key: 'fly_size', label: `#${catch_.fly_size}`, on: true, tier: 2 })
 
   // Tier 3 — conditions pills
   if (trip.date) {

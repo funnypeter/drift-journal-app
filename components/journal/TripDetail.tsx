@@ -218,18 +218,23 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                       <div className={styles.catchLabel}>Species</div>
                       <div className={styles.catchValue}>{c.species || 'Unknown'}</div>
                     </div>
-                    <div>
-                      <div className={styles.catchLabel}>Fly</div>
-                      <div className={styles.catchValue}>{c.fly || '—'}</div>
-                    </div>
-                    <div>
-                      <div className={styles.catchLabel}>Length</div>
-                      <div className={styles.catchValue}>{c.length ? `${c.length} in` : '—'}</div>
-                    </div>
-                    <div>
-                      <div className={styles.catchLabel}>Fly Size</div>
-                      <div className={styles.catchValue}>{c.fly_size ? `#${c.fly_size}` : '—'}</div>
-                    </div>
+                    {/* A no-fish photo has no fly, size or length to show (DRIFT-001). */}
+                    {!isNoFish(c) && (
+                      <>
+                        <div>
+                          <div className={styles.catchLabel}>Fly</div>
+                          <div className={styles.catchValue}>{c.fly || '—'}</div>
+                        </div>
+                        <div>
+                          <div className={styles.catchLabel}>Length</div>
+                          <div className={styles.catchValue}>{c.length ? `${c.length} in` : '—'}</div>
+                        </div>
+                        <div>
+                          <div className={styles.catchLabel}>Fly Size</div>
+                          <div className={styles.catchValue}>{c.fly_size ? `#${c.fly_size}` : '—'}</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -267,9 +272,13 @@ export default function TripDetail({ trip }: { trip: Trip }) {
                 <div className={styles.expandedLine} />
                 <h3 className={styles.expandedSpecies}>{expandedCatch.species || 'Unknown'}</h3>
                 <div className={styles.expandedStats}>
-                  {expandedCatch.length && <div><span className={styles.expandedStatLabel}>Length</span><span className={styles.expandedStatVal}>{expandedCatch.length}&quot;</span></div>}
-                  {expandedCatch.fly_size && <div><span className={styles.expandedStatLabel}>Size</span><span className={styles.expandedStatVal}>#{expandedCatch.fly_size}</span></div>}
-                  {expandedCatch.fly && <div><span className={styles.expandedStatLabel}>Fly</span><span className={styles.expandedStatVal}>{expandedCatch.fly}</span></div>}
+                  {!isNoFish(expandedCatch) && (
+                    <>
+                      {expandedCatch.length && <div><span className={styles.expandedStatLabel}>Length</span><span className={styles.expandedStatVal}>{expandedCatch.length}&quot;</span></div>}
+                      {expandedCatch.fly_size && <div><span className={styles.expandedStatLabel}>Size</span><span className={styles.expandedStatVal}>#{expandedCatch.fly_size}</span></div>}
+                      {expandedCatch.fly && <div><span className={styles.expandedStatLabel}>Fly</span><span className={styles.expandedStatVal}>{expandedCatch.fly}</span></div>}
+                    </>
+                  )}
                 </div>
                 {!isNoFish(expandedCatch) && realIdx >= 0 && (
                   <div className={styles.expandedMeta}>{realIdx + 1} of {real.length} catches</div>
