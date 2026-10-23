@@ -11,6 +11,10 @@
   "routes": [
     { "pattern": "driftjournal.pmansour.com", "custom_domain": true }
   ],
+  // Production stays on the custom domain only; each uploaded version (and
+  // --preview-alias, e.g. drift-005) gets a *.workers.dev preview link for review.
+  "workers_dev": false,
+  "preview_urls": true,
   "d1_databases": [
     {
       "binding": "DB",
