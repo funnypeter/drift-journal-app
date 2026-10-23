@@ -7,8 +7,14 @@ const withSerwist = require('@serwist/next').default({
   reloadOnOnline: true,
 })
 
+// Build commit, shown to Marker (Tix page annotations) so tickets record which build they were filed on.
+let buildSha = 'dev'
+try {
+  buildSha = require('child_process').execSync('git rev-parse --short HEAD').toString().trim()
+} catch {}
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = { env: { NEXT_PUBLIC_BUILD_SHA: buildSha } };
 
 module.exports = withSerwist(nextConfig);
 

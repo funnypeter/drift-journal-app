@@ -34,6 +34,7 @@ export const metadata: Metadata = {
     apple: '/icon-192.png',
   },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Drift Journal' },
+  other: { 'marker-build': process.env.NEXT_PUBLIC_BUILD_SHA || 'dev' },
 }
 
 export const viewport: Viewport = {
@@ -48,6 +49,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable} ${caveat.variable}`}>
       <body>
+        {/* Marker: shows nothing to visitors; Peter (signed in to Tix) gets the annotation overlay. Tickets go to Tix project DRIFT. */}
+        <script src="https://tix.pmansour.com/marker-loader.js" data-project="DRIFT" async />
         <ServiceWorkerRegister />
         <SyncRunner />
         <OfflineBadge />
