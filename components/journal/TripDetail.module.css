@@ -53,7 +53,16 @@
   border-color: var(--danger);
 }
 
-/* Title section */
+/* Title section: sticks to the top while the trip scrolls under it */
+.titleBlock {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
 .dateLabel {
   font-size: 0.72rem;
   font-weight: 700;
@@ -78,7 +87,6 @@
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 500;
-  margin-bottom: 20px;
 }
 
 .stateLink {
@@ -325,7 +333,7 @@
 
   .title { font-size: 2.8rem; }
 
-  .locationLine { margin-bottom: 28px; }
+  .titleBlock { padding-bottom: 16px; margin-bottom: 12px; }
 
   .layout {
     display: grid;
@@ -336,7 +344,7 @@
 
   .sideCol {
     position: sticky;
-    top: 24px;
+    top: calc(var(--title-h, 0px) + 12px);
   }
 
   /* Taller mini map in the wider column (LocationMiniMap's wrap > map div;
