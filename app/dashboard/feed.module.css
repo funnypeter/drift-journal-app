@@ -44,7 +44,7 @@
 }
 
 .titleLine {
-  width: 40px;
+  width: 64px;
   height: 3px;
   background: var(--teal);
   border-radius: 2px;
