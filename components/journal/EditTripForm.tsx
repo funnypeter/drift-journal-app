@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Trip, Catch, GarminPin } from '@/types'
+import { isNoFish } from '@/lib/catchUtils'
 import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
@@ -166,7 +167,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
     if (!flyPrompt) return
     const { index, fly, fly_category, fly_size } = flyPrompt
     setCatches(prev => prev.map((c, idx) =>
-      idx > index && !c._delete ? { ...c, fly, fly_category, fly_size } : c
+      idx > index && !c._delete && !isNoFish(c) ? { ...c, fly, fly_category, fly_size } : c
     ))
     setFlyPrompt(null)
   }
@@ -230,7 +231,7 @@ export default function EditTripForm({ trip }: { trip: Trip }) {
         // Non-fish photos (a plant, or a no-fish scene) are still saved so they
         // show in the gallery, but marked via `kind` so they don't count as
         // catches. Plants keep their identified name in `species`.
-        const nonFish = c.kind === 'flower' || c.kind === 'none'
+        const nonFish = isNoFish(c)
 
         let photoUrl = c.photo_url || null
         if (c.photoFile) {

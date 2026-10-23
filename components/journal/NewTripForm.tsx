@@ -17,6 +17,7 @@ import { drainQueue } from '@/lib/offline/sync'
 import { notifyQueueChanged } from '@/hooks/usePendingCount'
 import type { PendingCatch, PendingPhoto, PendingTrip } from '@/lib/offline/db'
 import type { Catch, GarminPin } from '@/types'
+import { isNoFish } from '@/lib/catchUtils'
 import styles from './NewTripForm.module.css'
 
 const LocationMiniMap = dynamic(() => import('./LocationMiniMap'), { ssr: false })
@@ -221,7 +222,7 @@ export default function NewTripForm() {
       // Non-fish photos (a plant, or a no-fish scene) are still saved so they
       // show in the gallery, but marked via `kind` so they don't count as
       // catches. Plants keep their identified name in `species`.
-      const nonFish = c.kind === 'flower' || c.kind === 'none'
+      const nonFish = isNoFish(c)
       let photoUrl: string | null = null
 
       if (c.photoFile) {
@@ -289,7 +290,7 @@ export default function NewTripForm() {
 
     for (let i = 0; i < linkedCatches.length; i++) {
       const c = linkedCatches[i]
-      const nonFish = c.kind === 'flower' || c.kind === 'none'
+      const nonFish = isNoFish(c)
       let photoId: string | undefined
       if (c.photoFile) {
         // Try to compress for IDB. Some Android devices fail canvas.toBlob on

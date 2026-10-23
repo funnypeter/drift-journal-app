@@ -5,6 +5,7 @@ import CatchCard from './CatchCard'
 import LocationSearch from './LocationSearch'
 import ConditionsPanel from './ConditionsPanel'
 import { compressForUpload } from '@/lib/imageUtils'
+import { isNoFish } from '@/lib/catchUtils'
 import { getDB } from '@/lib/offline/db'
 import {
   getPendingTrip,
@@ -158,7 +159,7 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
 
   function onFlyChosen(i: number, sel: { fly: string; fly_category: string; fly_size: string }) {
     const laterDiffer = catches.filter(
-      (c, idx) => idx > i && !c._delete && (c.fly || '') !== sel.fly
+      (c, idx) => idx > i && !c._delete && !isNoFish(c) && (c.fly || '') !== sel.fly
     ).length
     if (laterDiffer > 0) setFlyPrompt({ index: i, ...sel, count: laterDiffer })
   }
@@ -167,7 +168,7 @@ export default function EditPendingTripForm({ pendingId, onClose }: Props) {
     if (!flyPrompt) return
     const { index, fly, fly_category, fly_size } = flyPrompt
     setCatches(prev => prev.map((c, idx) =>
-      idx > index && !c._delete ? { ...c, fly, fly_category, fly_size } : c
+      idx > index && !c._delete && !isNoFish(c) ? { ...c, fly, fly_category, fly_size } : c
     ))
     setFlyPrompt(null)
   }
